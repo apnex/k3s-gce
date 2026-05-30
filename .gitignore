@@ -11,6 +11,10 @@
 *.tfvars
 !*.tfvars.example
 
+# Real deployments live here — never committed. examples/ holds the templates
+# you copy FROM; env/<name>/ is where you fill real values + hold state.
+/env/
+
 # GCP service-account key files. Broad rule + anchored defense-in-depth so a
 # real key stays ignored even if *.json is ever narrowed.
 *.json
