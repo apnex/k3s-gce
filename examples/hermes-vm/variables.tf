@@ -27,23 +27,25 @@ variable "credentials_file" {
   default     = null
 }
 
-variable "secret_prefix" {
-  description = "Secret Manager container prefix"
-  type        = string
-  default     = "kate"
-}
-
+# Each key is { key, scope }. scope "self" (default) → a per-VM container
+# `<name_prefix>-<KEY>` the module creates. A shared label → `<label>-<KEY>`,
+# assumed to already exist (module only grants read). Here the LiteLLM proxy
+# creds are shared across deployments under the "kate" label; the rest are
+# per-VM. ssh-target keys are added automatically (always self).
 variable "secret_keys" {
-  description = "App secret KEYS to provision + fetch (ssh-target keys are added by the module)"
-  type        = list(string)
+  description = "App secrets to provision/fetch as { key, scope } objects (scope defaults to self)"
+  type = list(object({
+    key   = string
+    scope = optional(string, "self")
+  }))
   default = [
-    "LITELLM_BASE_URL",
-    "LITELLM_MODEL",
-    "LITELLM_API_KEY",
-    "HERMES_PEER_NAME",
-    "DISCORD_BOT_TOKEN",
-    "DISCORD_ALLOWED_USERS",
-    "GH_TOKEN",
+    { key = "LITELLM_BASE_URL", scope = "kate" },
+    { key = "LITELLM_MODEL", scope = "kate" },
+    { key = "LITELLM_API_KEY", scope = "kate" },
+    { key = "HERMES_PEER_NAME" },
+    { key = "DISCORD_BOT_TOKEN" },
+    { key = "DISCORD_ALLOWED_USERS" },
+    { key = "GH_TOKEN" },
   ]
 }
 
@@ -57,7 +59,7 @@ variable "secret_values" {
 variable "env_file_path" {
   description = "Where the startup script writes the sourced env file"
   type        = string
-  default     = "/root/kate.env"
+  default     = "/root/k3s.env"
 }
 
 variable "enable_ssh_target_login" {

@@ -42,12 +42,11 @@ resource "google_compute_instance" "vm" {
     google-logging-enabled    = "true"
     google-monitoring-enabled = "true"
 
-    # env injection
-    k3s-env-name      = local.env_name
-    k3s-project       = var.project_id
-    k3s-secret-prefix = local.secret_prefix
-    k3s-secret-keys   = join(",", sort(tolist(local.all_secret_keys)))
-    k3s-env-file      = local.env_file_path
+    # env injection — TF owns container naming; startup.sh fetches by container
+    # name and writes the bare KEY=value. k3s-secret-map is "KEY:container,…".
+    k3s-project    = var.project_id
+    k3s-secret-map = local.secret_map
+    k3s-env-file   = local.env_file_path
 
     # k3s self-assembly
     k3s-bootstrap     = var.enable_k3s_bootstrap ? "on" : "off"

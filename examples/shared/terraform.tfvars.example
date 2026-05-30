@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars (gitignored) and set your values.
+project_id = "your-project-id"
+region     = "australia-southeast1"
+scope      = "kate"
+
+credentials_file = "/abs/path/to/your-sa-key.json"

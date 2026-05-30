@@ -11,10 +11,9 @@
 ##   3. optionally self-assemble k3s by cloning the bring-up repo (first boot)
 ##
 ## Metadata inputs (instance/attributes):
-##   k3s-env-name       environment segment of the secret names
 ##   k3s-project        GCP project id
-##   k3s-secret-prefix  secret container prefix
-##   k3s-secret-keys    comma-separated KEY list to fetch
+##   k3s-secret-map     "KEY:container,KEY:container,…" — TF owns container
+##                      naming (per-key scope); this script fetches by container
 ##   k3s-env-file       absolute path to write the sourced env file
 ##   k3s-bootstrap      on|off — self-assemble k3s on first boot
 ##   k3s-repo           git repo cloned for k3s bring-up
@@ -47,10 +46,8 @@ mfetch() {
 md() { mfetch "$MD/attributes/$1" || true; }
 
 # ── inputs ──────────────────────────────────────────────────────────
-ENV_NAME=$(md k3s-env-name)
 PROJECT=$(md k3s-project)
-PREFIX=$(md k3s-secret-prefix)
-KEYS_CSV=$(md k3s-secret-keys)
+SECRET_MAP=$(md k3s-secret-map)
 ENV_FILE=$(md k3s-env-file)
 BOOTSTRAP=$(md k3s-bootstrap)
 REPO=$(md k3s-repo)
@@ -62,8 +59,10 @@ ENTRY=$(md k3s-up-entrypoint)
 ENV_FILE="${ENV_FILE:-/root/app.env}"
 
 # ── stage 1: secrets → env file ─────────────────────────────────────
-if [[ -n "$ENV_NAME" && -n "$PROJECT" && -n "$PREFIX" && -n "$KEYS_CSV" ]]; then
-	echo "--- secrets: env=$ENV_NAME project=$PROJECT prefix=$PREFIX -> $ENV_FILE"
+# k3s-secret-map is "KEY:container,KEY:container,…" — TF composes the container
+# names (it knows each key's scope), so this script just fetches by container.
+if [[ -n "$PROJECT" && -n "$SECRET_MAP" ]]; then
+	echo "--- secrets: project=$PROJECT -> $ENV_FILE"
 
 	# Boot-safe: a missing token skips secret injection (logged) rather than
 	# aborting the whole startup script — k3s self-assembly can still proceed.
@@ -76,10 +75,12 @@ if [[ -n "$ENV_NAME" && -n "$PROJECT" && -n "$PREFIX" && -n "$KEYS_CSV" ]]; then
 
 	written=0
 	missed=0
-	IFS=',' read -ra KEYS <<< "$KEYS_CSV"
-	for KEY in "${KEYS[@]}"; do
-		[[ -n "$KEY" ]] || continue
-		SECRET="${PREFIX}-${ENV_NAME}-${KEY}"
+	IFS=',' read -ra PAIRS <<< "$SECRET_MAP"
+	for PAIR in "${PAIRS[@]}"; do
+		[[ -n "$PAIR" ]] || continue
+		KEY="${PAIR%%:*}"      # bare name written into the env file
+		SECRET="${PAIR#*:}"    # SM container name to fetch from
+		[[ -n "$KEY" && -n "$SECRET" ]] || continue
 		URL="https://secretmanager.googleapis.com/v1/projects/${PROJECT}/secrets/${SECRET}/versions/latest:access"
 
 		RESPONSE=$(curl -fsS -H "Authorization: Bearer ${TOKEN}" "$URL" 2>/dev/null) || {
