@@ -1,0 +1,17 @@
+# Copy to `terraform.tfvars` (gitignored) and set your deployment values.
+#
+# Deployment-specific config is treated as SENSITIVE — project IDs, regions,
+# naming, and any URLs change per deployment and are not committed (the repo is
+# cloned by many people). Secret VALUES go in secrets.auto.tfvars (see that
+# .example); this file is the non-secret-but-still-private deployment config.
+
+project_id  = "your-project-id"
+region      = "australia-southeast1"
+zone        = "australia-southeast1-a"
+name_prefix = "hermes"
+
+# Path to the GCP service-account key Terraform authenticates with. KEEP THE KEY
+# OUTSIDE THIS REPO TREE (e.g. ~/.config/gcloud/ or a parent dir) so it can never
+# be captured here; the path is relative to this examples/<name>/ directory.
+# Set to null to use Application Default Credentials (gcloud auth) instead.
+credentials_file = "/abs/path/to/your-sa-key.json"
