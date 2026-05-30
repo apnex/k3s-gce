@@ -72,36 +72,35 @@ variable "vm_roles" {
 }
 
 # ── secret / env injection (app-agnostic) ───────────────────────────
-variable "secret_prefix" {
-  description = "Secret Manager container name prefix. Containers are named `<secret_prefix>-<env_name>-<KEY>`. Defaults to name_prefix when null."
-  type        = string
-  default     = null
-}
-
-variable "env_name" {
-  description = "Environment name segment in the Secret Manager container names. Defaults to name_prefix when null."
-  type        = string
-  default     = null
-}
-
+# Container names are `<scope>-<KEY>`. Each key's scope is either the VM's own
+# name (per-VM isolation) or a shared label (cross-VM sharing):
+#   scope = "self" (default) → `<name_prefix>-<KEY>`, CREATED + read-granted here
+#   scope = "<label>"        → `<label>-<KEY>`, assumed to ALREADY EXIST; the
+#                              module only grants the VM read access (it does
+#                              not create or write shared containers).
 variable "secret_keys" {
-  description = "Application secret KEYS the VM should fetch into the env file (e.g. LITELLM_API_KEY, GH_TOKEN). The ssh-target keys are added automatically when enable_ssh_target_login is true — do NOT list them here."
-  type        = list(string)
-  default     = []
+  description = "Application secrets the VM fetches into the env file. Each entry is { key = \"NAME\", scope = \"self\"|\"<shared-label>\" } (scope defaults to \"self\"). self → module creates `<name_prefix>-<KEY>`; a label → module references an existing `<label>-<KEY>` (read-only). The ssh-target keys are added automatically (always self) when enable_ssh_target_login is true — do NOT list them here."
+  type = list(object({
+    key   = string
+    scope = optional(string, "self")
+  }))
+  default = []
 }
 
 variable "secret_values" {
-  description = "Optional KEY → value map written as Secret Manager versions (typically via a gitignored *.auto.tfvars). Keys must be a subset of secret_keys. Values land in terraform.tfstate in plaintext — treat state as sensitive."
+  description = "Optional KEY → value map written as Secret Manager versions of the SELF-scoped containers (typically via a gitignored *.auto.tfvars). Keys must be self-scoped entries in secret_keys — shared containers are populated out-of-band, not here. Values land in terraform.tfstate in plaintext — treat state as sensitive."
   type        = map(string)
   default     = {}
   sensitive   = true
 
   validation {
-    # Keys must be declared in secret_keys. nonsensitive() is safe here — it
-    # exposes only the KEY names (not values) to the error message. This also
-    # blocks accidentally setting the module-owned SSH_TARGET_* keys.
-    condition     = length(setsubtract(keys(nonsensitive(var.secret_values)), var.secret_keys)) == 0
-    error_message = "secret_values keys must be a subset of secret_keys (do not set the module-managed SSH_TARGET_* keys here)."
+    # Values may only target SELF-scoped keys — shared containers are populated
+    # out-of-band, not by this deployment. Validating against the self-scoped
+    # subset turns a misplaced shared value into a clear message here instead of
+    # an "Invalid index" crash in secrets.tf. nonsensitive() exposes only KEY
+    # names (not values) to the error text.
+    condition     = length(setsubtract(keys(nonsensitive(var.secret_values)), [for e in var.secret_keys : e.key if e.scope == "self"])) == 0
+    error_message = "secret_values keys must be SELF-scoped entries in secret_keys. Shared-scoped keys are populated where their container is created (e.g. env/shared/), and SSH_TARGET_* are module-managed."
   }
 }
 

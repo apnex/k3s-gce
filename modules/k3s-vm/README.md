@@ -53,16 +53,14 @@ The `google.ssh_login` aliased provider is required whenever `enable_ssh_target_
 | `vpc_cidr` | `10.20.0.0/24` | subnet CIDR |
 | `apis` | 7 core APIs | project services to enable |
 | `vm_roles` | logging + monitoring writers | VM runtime SA roles |
-| `secret_prefix` | `name_prefix` | SM container prefix (null → name_prefix) |
-| `env_name` | `name_prefix` | env segment of SM names |
-| `secret_keys` | `[]` | app secret KEYS (ssh-target keys added automatically) |
-| `secret_values` | `{}` (sensitive) | optional KEY → value map → SM versions (validated ⊆ secret_keys) |
+| `secret_keys` | `[]` | app secrets as `{ key, scope }` objects; scope `self` (default) → created per-VM container, a label → referenced shared container (ssh-target keys added automatically, always self) |
+| `secret_values` | `{}` (sensitive) | optional KEY → value map → SM versions of SELF containers (validated ⊆ self-scoped secret_keys) |
 | `env_file_path` | `/root/<name_prefix>.env` | where startup writes the sourced env (null → derived) |
 | `enable_ssh_target_login` | `true` | provision the pod→host OS Login identity |
 | `enable_k3s_bootstrap` | `true` | self-assemble k3s on first boot |
 | `k3s_repo_url` / `k3s_repo_ref` / `k3s_up_entrypoint` | apnex/labops / `master` / `k3s/up` | bring-up source |
 
-Secret Manager containers are named `<secret_prefix>-<env_name>-<KEY>`.
+Secret Manager containers are named `<scope>-<KEY>`, where `scope` is the VM's `name_prefix` (self) or a shared label. Self-scoped containers are created by the module; shared ones are referenced (read-only) and must already exist.
 
 ---
 

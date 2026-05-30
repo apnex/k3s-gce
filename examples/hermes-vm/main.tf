@@ -50,7 +50,6 @@ module "k3s_vm" {
   zone        = var.zone
   name_prefix = var.name_prefix
 
-  secret_prefix = var.secret_prefix
   secret_keys   = var.secret_keys
   secret_values = var.secret_values
   env_file_path = var.env_file_path
