@@ -128,12 +128,30 @@ else
 fi
 
 # ── stage 3: self-assemble k3s (first boot only) ────────────────────
-MARKER=/var/lib/k3s-gce-bootstrapped
+# Operational state lives under /root/k3s-gce (root-only, single place to
+# inspect/wipe). The boot LOG stays in /var/log for journalctl discoverability.
+STATE_DIR=/root/k3s-gce
+MARKER="$STATE_DIR/bootstrapped"
+LOCK="$STATE_DIR/bootstrap.lock"
+mkdir -p "$STATE_DIR"
+
 if [[ "${BOOTSTRAP:-off}" == "on" ]]; then
 	if [[ -f "$MARKER" ]]; then
 		echo "--- k3s: already bootstrapped (marker $MARKER) — skipping"
 	elif [[ -z "$REPO" || -z "$ENTRY" ]]; then
 		echo "--- k3s: bootstrap on but repo/entrypoint metadata missing — skipping"
+	# Single-instance guard. The boot-time runner fires once (oneshot, no
+	# restart), but this script is ALSO runnable by hand
+	# (google_metadata_script_runner startup) for secret refresh — so an
+	# operator re-run can overlap an in-flight boot bootstrap and race k3s/up
+	# (which then collides on the metallb webhook). Take a NON-BLOCKING lock so
+	# a second invocation steps aside. Lock auto-releases when fd 9 closes.
+	elif exec 9>"$LOCK"; ! flock -n 9; then
+		echo "--- k3s: another bootstrap is in progress (lock $LOCK) — skipping"
+	# Re-check the marker now we hold the lock — a concurrent run may have
+	# finished between the first check and acquiring the lock (double-checked).
+	elif [[ -f "$MARKER" ]]; then
+		echo "--- k3s: bootstrapped by a concurrent run — skipping"
 	else
 		echo "--- k3s: self-assembling from ${REPO}@${REF:-default} ($ENTRY)"
 		if ! command -v git >/dev/null 2>&1; then
