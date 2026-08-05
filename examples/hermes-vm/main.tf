@@ -50,6 +50,9 @@ module "k3s_gce" {
   zone        = var.zone
   name_prefix = var.name_prefix
 
+  # The module no longer creates networking - it attaches to this subnet.
+  subnetwork = google_compute_subnetwork.subnet.id
+
   secret_keys   = var.secret_keys
   secret_values = var.secret_values
   env_file_path = var.env_file_path

@@ -1,22 +1,23 @@
-# k3s-gce — a reusable, internal-only k3s VM on GCE.
+# k3s-gce - a reusable, internal-only k3s VM on GCE.
 #
-# Stands up: custom VPC + IAP-SSH + Cloud NAT, a least-privilege Rocky VM with
-# OS Login, app secrets in Secret Manager fetched into an env file on boot, an
-# optional pod→host SSH login identity, and optional self-assembly of k3s.
+# Scope is the VM: a least-privilege Rocky instance with OS Login, app secrets
+# in Secret Manager fetched into an env file on boot, an optional pod->host SSH
+# login identity, and optional self-assembly of k3s.
+#
+# NOT in scope: the VPC, subnet, firewall rules, Cloud NAT, and project API
+# enablement. Those belong to the project/network layer and are caller
+# prerequisites (see README). The module attaches to an existing subnetwork.
 #
 # App-agnostic: the secret names, env-file path, and k3s repo are all inputs.
 
-resource "google_project_service" "apis" {
-  for_each = toset(var.apis)
-
-  project            = var.project_id
-  service            = each.value
-  disable_on_destroy = false
-}
-
 locals {
-  # App-neutral default — derived from name_prefix, no embedded app identity.
+  # App-neutral default - derived from name_prefix, no embedded app identity.
   env_file_path = coalesce(var.env_file_path, "/root/${var.name_prefix}.env")
+
+  # Tags the caller's IAP-SSH firewall rule must target. Defaulted from
+  # name_prefix (a variable cannot be interpolated into a variable default) and
+  # exported as an output so the caller wires its rule to what was applied.
+  network_tags = coalesce(var.network_tags, ["${var.name_prefix}-vm"])
 
   # The module owns the ssh-target keys when login is enabled — operators must
   # NOT list them in var.secret_keys. Always self-scoped: a host key is

@@ -27,6 +27,27 @@ variable "credentials_file" {
   default     = null
 }
 
+# Networking and project setup live here, not in the module.
+variable "vpc_cidr" {
+  description = "Primary IPv4 CIDR for the subnet"
+  type        = string
+  default     = "10.20.0.0/24"
+}
+
+variable "apis" {
+  description = "Project services to enable. The minimum for an internal-only, OS-Login + Secret-Manager VM."
+  type        = list(string)
+  default = [
+    "compute.googleapis.com",
+    "iam.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
+    "iap.googleapis.com",
+    "logging.googleapis.com",
+    "monitoring.googleapis.com",
+    "secretmanager.googleapis.com",
+  ]
+}
+
 # Each key is { key, scope }. scope "self" (default) → a per-VM container
 # `<name_prefix>-<KEY>` the module creates. A shared label → `<label>-<KEY>`,
 # assumed to already exist (module only grants read). Here the LiteLLM proxy

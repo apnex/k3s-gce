@@ -17,8 +17,6 @@ resource "google_secret_manager_secret" "this" {
     managed = "k3s-gce"
     owner   = var.name_prefix
   }
-
-  depends_on = [google_project_service.apis["secretmanager.googleapis.com"]]
 }
 
 # Optional value population from var.secret_values (typically a gitignored

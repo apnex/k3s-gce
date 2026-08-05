@@ -5,7 +5,7 @@
 resource "google_compute_address" "vm_internal" {
   name         = "${var.name_prefix}-vm-ip"
   address_type = "INTERNAL"
-  subnetwork   = google_compute_subnetwork.subnet.id
+  subnetwork   = var.subnetwork
   region       = var.region
 }
 
@@ -13,7 +13,7 @@ resource "google_compute_instance" "vm" {
   name         = "${var.name_prefix}-vm"
   machine_type = var.machine_type
   zone         = var.zone
-  tags         = ["${var.name_prefix}-vm"]
+  tags         = local.network_tags
 
   boot_disk {
     initialize_params {
@@ -23,9 +23,9 @@ resource "google_compute_instance" "vm" {
     }
   }
 
-  # Internal-only — no access_config block, so no ephemeral public IP.
+  # Internal-only - no access_config block, so no ephemeral public IP.
   network_interface {
-    subnetwork = google_compute_subnetwork.subnet.id
+    subnetwork = var.subnetwork
     network_ip = google_compute_address.vm_internal.address
   }
 
@@ -61,11 +61,6 @@ resource "google_compute_instance" "vm" {
     managed = "k3s-gce"
     role    = "${var.name_prefix}-k3s"
   }
-
-  depends_on = [
-    google_project_service.apis["compute.googleapis.com"],
-    google_compute_firewall.allow_iap_ssh,
-  ]
 
   allow_stopping_for_update = true
 }

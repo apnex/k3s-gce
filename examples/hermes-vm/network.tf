@@ -1,10 +1,22 @@
-# Custom VPC + subnet + IAP-SSH firewall + Cloud NAT for outbound egress.
-# The VM has no public IP — reachable only via IAP-tunnel SSH; outbound via NAT.
+# Project and network prerequisites for the k3s-gce module.
+#
+# The module deploys the VM only. Everything here is the caller's
+# responsibility, and this file is the reference for what that means:
+# enabled APIs, a VPC, a subnet with Private Google Access, an IAP-SSH
+# firewall rule, and outbound egress via Cloud NAT.
+
+resource "google_project_service" "apis" {
+  for_each = toset(var.apis)
+
+  project            = var.project_id
+  service            = each.value
+  disable_on_destroy = false
+}
 
 resource "google_compute_network" "vpc" {
   name                    = "${var.name_prefix}-vpc"
   auto_create_subnetworks = false
-  description             = "${var.name_prefix} VPC — internal-only k3s VM"
+  description             = "${var.name_prefix} VPC - internal-only k3s VM"
 
   depends_on = [google_project_service.apis["compute.googleapis.com"]]
 }
@@ -15,12 +27,14 @@ resource "google_compute_subnetwork" "subnet" {
   region        = var.region
   network       = google_compute_network.vpc.id
 
-  # VM has no public IP — Private Google Access lets it reach Google APIs
-  # (Cloud Logging, OS Login metadata, Secret Manager) without Cloud NAT.
+  # REQUIRED by the module. The VM has no public IP, so Private Google Access
+  # is what lets it reach Secret Manager, Cloud Logging and OS Login metadata.
+  # Without this the apply succeeds and the VM fails at boot.
   private_ip_google_access = true
 }
 
-# IAP-tunnel SSH → VM:22. 35.235.240.0/20 is Google's canonical IAP range.
+# IAP-tunnel SSH to VM:22. 35.235.240.0/20 is Google's canonical IAP range.
+# Targets the tags the module actually applied, so the two cannot drift.
 resource "google_compute_firewall" "allow_iap_ssh" {
   name      = "${var.name_prefix}-allow-iap-ssh"
   network   = google_compute_network.vpc.id
@@ -32,11 +46,12 @@ resource "google_compute_firewall" "allow_iap_ssh" {
   }
 
   source_ranges = ["35.235.240.0/20"]
-  target_tags   = ["${var.name_prefix}-vm"]
+  target_tags   = module.k3s_gce.network_tags
 }
 
-# Cloud NAT — outbound internet egress for the internal-only VM.
-# Inbound stays closed (no public IP); reachable only via IAP-SSH.
+# Outbound internet egress for the internal-only VM. REQUIRED when
+# enable_k3s_bootstrap is true: first boot clones the bring-up repo and
+# downloads the k3s installer. Inbound stays closed - no public IP.
 resource "google_compute_router" "router" {
   name    = "${var.name_prefix}-router"
   region  = var.region

@@ -13,6 +13,11 @@ output "vm_zone" {
   value       = google_compute_instance.vm.zone
 }
 
+output "network_tags" {
+  description = "Network tags applied to the VM. Target these from your IAP-SSH firewall rule."
+  value       = local.network_tags
+}
+
 output "vm_sa_email" {
   description = "Email of the VM runtime service account"
   value       = google_service_account.vm.email

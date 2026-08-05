@@ -41,27 +41,22 @@ variable "boot_disk_size_gb" {
   default     = 20
 }
 
-variable "vpc_cidr" {
-  description = "Primary IPv4 CIDR for the subnet"
+# ── networking (caller-provided) ────────────────────────────────────
+# The module does NOT create a VPC, subnet, firewall rule or Cloud NAT. It
+# attaches to a subnetwork you already own. See README for what that
+# subnetwork must provide.
+variable "subnetwork" {
+  description = "Self link or ID of an existing subnetwork to attach the VM to. Must be in var.region, must have Private Google Access enabled (the VM has no public IP and needs it to reach Secret Manager, Logging and OS Login), and must have outbound internet egress (Cloud NAT or equivalent) when enable_k3s_bootstrap is true."
   type        = string
-  default     = "10.20.0.0/24"
 }
 
-# ── project services + VM SA roles ──────────────────────────────────
-variable "apis" {
-  description = "Project services to enable. The defaults are the minimum for an internal-only, OS-Login + Secret-Manager VM."
+variable "network_tags" {
+  description = "Network tags applied to the VM. Your IAP-SSH firewall rule must target these. Defaults to [\"<name_prefix>-vm\"] when null; also exposed as the network_tags output so the firewall rule can reference what was actually applied."
   type        = list(string)
-  default = [
-    "compute.googleapis.com",
-    "iam.googleapis.com",
-    "cloudresourcemanager.googleapis.com",
-    "iap.googleapis.com",
-    "logging.googleapis.com",
-    "monitoring.googleapis.com",
-    "secretmanager.googleapis.com",
-  ]
+  default     = null
 }
 
+# ── VM SA roles ─────────────────────────────────────────────────────
 variable "vm_roles" {
   description = "Project IAM roles granted to the VM runtime service account."
   type        = list(string)

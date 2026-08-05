@@ -2,13 +2,15 @@
 
 Self-assembling, internal-only k3s VM on GCE.
 
-Stands up:
+Scope is the VM. Stands up:
 
-- custom VPC with IAP-SSH ingress and Cloud NAT egress
-- least-privilege Rocky 9 VM with OS Login
+- least-privilege Rocky 9 VM with OS Login, no public IP
 - application secrets in Secret Manager, fetched into an env file on boot
 - pod->host SSH login identity (optional)
 - k3s self-assembly on first boot (optional)
+
+The VPC, subnet, firewall rules, Cloud NAT and project API enablement are **not** in scope.
+The module attaches to a subnetwork you already own.
 
 Assumes an authenticated `terraform` and `gcloud` against a GCP project, with `compute`, `iam`, `secretmanager`, and `serviceusage` admin rights.
 
@@ -16,6 +18,18 @@ Confirm the tooling before starting:
 ```
 gcloud auth list && terraform version
 ```
+
+### prerequisites
+
+You provide these. Two of them fail at **boot**, not at apply, so a green `terraform apply` is not proof they are right.
+
+- **A subnetwork in `var.region`** - passed as `subnetwork`.
+- **Private Google Access enabled on it.** The VM has no public IP, so this is what lets it reach Secret Manager, Cloud Logging and OS Login metadata. Without it the apply succeeds and the VM cannot fetch its secrets.
+- **Outbound egress**, via Cloud NAT or equivalent, whenever `enable_k3s_bootstrap` is true. First boot clones the bring-up repo and downloads the k3s installer. Without it the apply succeeds and no cluster appears.
+- **An IAP-SSH firewall rule** allowing `35.235.240.0/20` to `tcp:22`, targeting the module's `network_tags` output. Without it the VM is unreachable.
+- **Enabled APIs**: `compute`, `iam`, `cloudresourcemanager`, `iap`, `logging`, `monitoring`, `secretmanager`.
+
+`examples/hermes-vm/network.tf` is a working reference for all five.
 
 ### main.tf
 ```
@@ -54,6 +68,24 @@ module "k3s-gce" {
 	region		= local.region
 	name_prefix	= local.name_prefix
 	secret_keys	= local.secret_keys
+
+	# an existing subnet you own -- see prerequisites
+	subnetwork	= google_compute_subnetwork.subnet.id
+}
+
+# target the tags the module actually applied, so the two cannot drift
+resource "google_compute_firewall" "allow_iap_ssh" {
+	name		= "${local.name_prefix}-allow-iap-ssh"
+	network		= google_compute_network.vpc.id
+	direction	= "INGRESS"
+
+	allow {
+		protocol	= "tcp"
+		ports		= ["22"]
+	}
+
+	source_ranges	= ["35.235.240.0/20"]
+	target_tags	= module.k3s-gce.network_tags
 }
 
 output "ssh_command" {
