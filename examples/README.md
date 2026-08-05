@@ -69,7 +69,7 @@ cd env/hermes-vm
 
 Run a single command instead:
 ```
-./login.sh --command='sudo tail -n 40 /var/log/k3s-gce-bootstrap.log'
+./login.sh --command='sudo journalctl -u k3s-gce-env -u k3s-gce-bootstrap -n 40'
 ```
 
 ---

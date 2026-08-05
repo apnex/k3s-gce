@@ -52,7 +52,15 @@ resource "google_compute_instance" "vm" {
     k3s-ref           = var.k3s_repo_ref
     k3s-up-entrypoint = var.k3s_up_entrypoint
 
-    startup-script = file("${path.module}/startup.sh")
+    # Guest assets. startup-script installs the other four and drives the two
+    # units; it performs no provisioning itself. One duty per unit:
+    # k3s-gce-env resolves secrets into the env file, k3s-gce-bootstrap
+    # self-assembles k3s once.
+    startup-script       = file("${path.module}/guest/startup.sh")
+    k3s-env-script       = file("${path.module}/guest/env.sh")
+    k3s-bootstrap-script = file("${path.module}/guest/k3s.sh")
+    k3s-env-unit         = file("${path.module}/guest/k3s-gce-env.service")
+    k3s-bootstrap-unit   = file("${path.module}/guest/k3s-gce-bootstrap.service")
   }
 
   labels = {

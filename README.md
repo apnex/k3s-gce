@@ -171,13 +171,31 @@ enable_ssh_target_login = false
 
 ### notes
 
-`startup.sh` is static and generic, parameterised entirely via VM metadata under `k3s-*` keys, with no Terraform templating.\
-It is idempotent: secrets refresh every boot, and k3s self-assembly runs once, guarded by a marker at `/root/k3s-gce/bootstrapped`.
+Everything that runs inside the VM lives in `guest/`, delivered through instance metadata. The scripts are static and generic, parameterised entirely by `k3s-*` metadata keys, with no Terraform templating.
 
-Operational state lives under `/root/k3s-gce`: the marker, plus `/root/k3s-gce/bootstrap.lock`, which serialises a hand-run of the script against an in-flight boot. The boot log is separate, at `/var/log/k3s-gce-bootstrap.log`.
+Provisioning is split into two units, one duty each:
 
-To force a re-bootstrap, remove the marker and re-run the script:
+- **`k3s-gce-env.service`** resolves Secret Manager values into the env file. Runs every boot, idempotent.
+- **`k3s-gce-bootstrap.service`** self-assembles k3s. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/bootstrapped`.
+
+`guest/startup.sh` is the GCE startup-script and provisions nothing itself. It materialises the two scripts and two units from metadata, then drives them. Materialising before starting is what keeps a rebooted VM on the current module version rather than on whatever the last boot left behind.
+
+They share no runtime state, so a secret refresh cannot disturb k3s.
+
+Refresh secrets without touching k3s:
+```
+sudo systemctl restart k3s-gce-env
+```
+
+Read the logs, which go to the journal and rotate there:
+```
+journalctl -u k3s-gce-env -u k3s-gce-bootstrap
+```
+
+Force a re-bootstrap by clearing the marker the unit condition reads:
 ```
 sudo rm -f /root/k3s-gce/bootstrapped
-sudo google_metadata_script_runner startup
+sudo systemctl start k3s-gce-bootstrap
 ```
+
+Concurrency, run-once and timeouts are the unit manager's job rather than hand-rolled: systemd will not run a unit twice at once, `ConditionPathExists` gates the re-run, and `TimeoutStartSec` bounds a hung bring-up so it cannot wedge the node.

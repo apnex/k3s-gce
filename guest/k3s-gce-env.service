@@ -1,0 +1,18 @@
+[Unit]
+Description=k3s-gce: resolve Secret Manager values into the VM env file
+Documentation=https://github.com/apnex/k3s-gce
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/k3s-gce/env.sh
+# Bounded so a wedged metadata or Secret Manager call cannot hang boot.
+TimeoutStartSec=300
+
+# Deliberately no [Install] section. The unit is driven by the GCE startup
+# script, which materialises a fresh env.sh from metadata and then restarts
+# this unit. Enabling it via WantedBy would start it earlier in boot using the
+# PREVIOUS boot's script, and it would then run a second time once the startup
+# script refreshed it. `systemctl restart k3s-gce-env` works regardless.
