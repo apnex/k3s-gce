@@ -1,6 +1,6 @@
 ## SYN
 
-Self-assembling, internal-only k3s VM on GCE.
+Self-assembling k3s VM on GCE.
 
 Scope is the VM. Stands up:
 

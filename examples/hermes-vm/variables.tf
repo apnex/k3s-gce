@@ -35,7 +35,7 @@ variable "vpc_cidr" {
 }
 
 variable "apis" {
-  description = "Project services to enable. The minimum for an internal-only, OS-Login + Secret-Manager VM."
+  description = "Project services to enable. The minimum for an OS-Login + Secret-Manager VM."
   type        = list(string)
   default = [
     "compute.googleapis.com",

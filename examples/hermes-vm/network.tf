@@ -16,7 +16,7 @@ resource "google_project_service" "apis" {
 resource "google_compute_network" "vpc" {
   name                    = "${var.name_prefix}-vpc"
   auto_create_subnetworks = false
-  description             = "${var.name_prefix} VPC - internal-only k3s VM"
+  description             = "${var.name_prefix} VPC - k3s VM"
 
   depends_on = [google_project_service.apis["compute.googleapis.com"]]
 }
@@ -52,9 +52,9 @@ resource "google_compute_firewall" "allow_iap_ssh" {
   target_tags   = module.k3s_gce.network_tags
 }
 
-# Outbound internet egress for the internal-only VM. REQUIRED when
-# enable_k3s_bootstrap is true: first boot clones the bring-up repo and
-# downloads the k3s installer. Inbound stays closed - no public IP.
+# Outbound internet egress. The VM has no public IP, so this is its only route
+# out, and it is REQUIRED when enable_k3s_bootstrap is true: first boot clones
+# the bring-up repo and downloads the k3s installer. Inbound stays closed.
 resource "google_compute_router" "router" {
   name    = "${var.name_prefix}-router"
   region  = var.region

@@ -1,4 +1,4 @@
-# k3s-gce - a reusable, internal-only k3s VM on GCE.
+# k3s-gce - a reusable k3s VM on GCE.
 #
 # Scope is the VM: a least-privilege Rocky instance with OS Login, app secrets
 # in Secret Manager fetched into an env file on boot, an optional pod->host SSH
