@@ -149,7 +149,7 @@ echo "systemd env: $SYSTEMD_ENV (EnvironmentFile= form)"
 # sees the logic and not the secrets.
 cat > /etc/profile.d/gce-env.sh <<PROFILE
 # Auto-source ${ENV_FILE} for root login shells.
-# Written by k3s-gce env.sh -- do not edit; overwritten on next boot.
+# Written by gce-env -- do not edit; overwritten on next boot.
 if [ "\${EUID:-\$(id -u)}" = "0" ] && [ -r "${ENV_FILE}" ]; then
     set -a
     . "${ENV_FILE}"

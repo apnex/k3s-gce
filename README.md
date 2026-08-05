@@ -173,12 +173,17 @@ enable_ssh_target_login = false
 
 Everything that runs inside the VM lives in `guest/`, delivered through instance metadata. The scripts are static and generic, parameterised entirely by metadata keys, with no Terraform templating.
 
-Nothing in `guest/` is k3s-specific. The keys are `env-*` for the env duty and `bootstrap-*` for the clone-and-run duty, so the whole tree transplants to another GCE module unchanged - only what the bootstrap repo installs differs.
+Keys are named `<duty>-<thing>`, and the two duties are named for what they are:
+
+- **`env-*`** and `gce-env.service` are generic. Resolving Secret Manager values into an env file has nothing to do with k3s, and this half transplants to another GCE module unchanged.
+- **`k3s-*`** and `k3s-bootstrap.service` are this module's installer, and say so.
+
+The reusable piece is the pattern - `guest/` assets delivered by metadata, one systemd unit per duty, and the env contract below - not the k3s script itself. A module installing something else keeps the first half and swaps the second.
 
 Provisioning is split into two units, one duty each:
 
 - **`gce-env.service`** resolves Secret Manager values into the env file. Runs every boot, idempotent.
-- **`gce-bootstrap.service`** self-assembles k3s. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/bootstrapped`.
+- **`k3s-bootstrap.service`** self-assembles k3s. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/bootstrapped`.
 
 `guest/startup.sh` is the GCE startup-script and provisions nothing itself. It materialises the two scripts and two units from metadata, then drives them. Materialising before starting is what keeps a rebooted VM on the current module version rather than on whatever the last boot left behind.
 
@@ -191,13 +196,13 @@ sudo systemctl restart gce-env
 
 Read the logs, which go to the journal and rotate there:
 ```
-journalctl -u gce-env -u gce-bootstrap
+journalctl -u gce-env -u k3s-bootstrap
 ```
 
 Force a re-bootstrap by clearing the marker the unit condition reads:
 ```
 sudo rm -f /root/k3s-gce/bootstrapped
-sudo systemctl start gce-bootstrap
+sudo systemctl start k3s-bootstrap
 ```
 
 ### env contract
@@ -226,6 +231,6 @@ ExecStart=/opt/k3s-gce/netbird.sh
 
 Its script then reads `NETBIRD_SETUP_KEY` straight from its own environment, with no shell and no human in the path. Add the key to `secret_keys` and it appears there on the next boot.
 
-`gce-bootstrap` already consumes it this way, which is what puts the secrets in front of the bring-up entrypoint.
+`k3s-bootstrap` already consumes it this way, which is what puts the secrets in front of the bring-up entrypoint.
 
 Concurrency, run-once and timeouts are the unit manager's job rather than hand-rolled: systemd will not run a unit twice at once, `ConditionPathExists` gates the re-run, and `TimeoutStartSec` bounds a hung bring-up so it cannot wedge the node.

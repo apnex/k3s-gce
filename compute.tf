@@ -47,20 +47,20 @@ resource "google_compute_instance" "vm" {
     env-file       = local.env_file_path
 
     # k3s self-assembly
-    bootstrap-enabled    = var.enable_k3s_bootstrap ? "on" : "off"
-    bootstrap-repo       = var.k3s_repo_url
-    bootstrap-ref        = var.k3s_repo_ref
-    bootstrap-entrypoint = var.k3s_up_entrypoint
+    k3s-bootstrap     = var.enable_k3s_bootstrap ? "on" : "off"
+    k3s-repo          = var.k3s_repo_url
+    k3s-ref           = var.k3s_repo_ref
+    k3s-up-entrypoint = var.k3s_up_entrypoint
 
     # Guest assets. startup-script installs the other four and drives the two
     # units; it performs no provisioning itself. One duty per unit:
-    # gce-env resolves secrets into the env file, gce-bootstrap
+    # gce-env resolves secrets into the env file, k3s-bootstrap
     # self-assembles k3s once.
-    startup-script   = file("${path.module}/guest/startup.sh")
-    env-script       = file("${path.module}/guest/env.sh")
-    bootstrap-script = file("${path.module}/guest/k3s.sh")
-    env-unit         = file("${path.module}/guest/gce-env.service")
-    bootstrap-unit   = file("${path.module}/guest/gce-bootstrap.service")
+    startup-script = file("${path.module}/guest/startup.sh")
+    env-script     = file("${path.module}/guest/env.sh")
+    k3s-script     = file("${path.module}/guest/k3s.sh")
+    env-unit       = file("${path.module}/guest/gce-env.service")
+    k3s-unit       = file("${path.module}/guest/k3s-bootstrap.service")
   }
 
   labels = {

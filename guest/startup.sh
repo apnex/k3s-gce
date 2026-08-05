@@ -5,16 +5,16 @@
 ## instance metadata, installs them, and hands off:
 ##
 ##   gce-env.service        metadata + Secret Manager -> VM env file
-##   gce-bootstrap.service  self-assemble k3s, once
+##   k3s-bootstrap.service  self-assemble k3s, once
 ##
 ## Runs on every boot. Materialising before starting is what keeps the units on
 ## the CURRENT module version rather than whatever last boot left on disk.
 ##
 ## Metadata inputs (instance/attributes):
 ##   env-script        contents of env.sh
-##   bootstrap-script  contents of k3s.sh
+##   k3s-script  contents of k3s.sh
 ##   env-unit          contents of gce-env.service
-##   bootstrap-unit    contents of gce-bootstrap.service
+##   k3s-unit    contents of k3s-bootstrap.service
 ##
 ## Output goes to journald:  journalctl -u google-startup-scripts
 ## Dependencies: curl, systemctl (Rocky 9 base).
@@ -50,9 +50,9 @@ echo "k3s-gce: installing guest assets"
 mkdir -p "$INSTALL_DIR"
 
 install_asset env-script       "$INSTALL_DIR/env.sh"                    0700
-install_asset bootstrap-script "$INSTALL_DIR/k3s.sh"                    0700
+install_asset k3s-script "$INSTALL_DIR/k3s.sh"                    0700
 install_asset env-unit         "$UNIT_DIR/gce-env.service"          0644
-install_asset bootstrap-unit   "$UNIT_DIR/gce-bootstrap.service"    0644
+install_asset k3s-unit   "$UNIT_DIR/k3s-bootstrap.service"    0644
 
 systemctl daemon-reload
 
@@ -64,6 +64,6 @@ systemctl restart gce-env.service
 # bootstrap is guarded by ConditionPathExists in the unit; systemd reports it
 # as skipped, not failed, once the marker exists.
 echo "k3s-gce: starting bootstrap (skipped by the unit if already done)"
-systemctl start gce-bootstrap.service
+systemctl start k3s-bootstrap.service
 
 echo "k3s-gce: startup complete"
