@@ -12,6 +12,7 @@ name_prefix = "hermes"
 
 # Path to the GCP service-account key Terraform authenticates with. KEEP THE KEY
 # OUTSIDE THIS REPO TREE (e.g. ~/.config/gcloud/ or a parent dir) so it can never
-# be captured here; the path is relative to this examples/<name>/ directory.
+# be captured here; a relative path resolves against the env/<name>/ directory
+# this file is copied into.
 # Set to null to use Application Default Credentials (gcloud auth) instead.
 credentials_file = "/abs/path/to/your-sa-key.json"
