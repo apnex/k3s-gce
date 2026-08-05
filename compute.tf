@@ -38,9 +38,7 @@ resource "google_compute_instance" "vm" {
   # Set via the metadata map (not metadata_startup_script, which is forceNew
   # and would recreate the VM on every script edit).
   metadata = {
-    enable-oslogin            = "TRUE"
-    google-logging-enabled    = "true"
-    google-monitoring-enabled = "true"
+    enable-oslogin = "TRUE"
 
     # env injection — TF owns container naming; startup.sh fetches by container
     # name and writes the bare KEY=value. k3s-secret-map is "KEY:container,…".

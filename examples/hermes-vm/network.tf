@@ -27,9 +27,12 @@ resource "google_compute_subnetwork" "subnet" {
   region        = var.region
   network       = google_compute_network.vpc.id
 
-  # REQUIRED by the module. The VM has no public IP, so Private Google Access
-  # is what lets it reach Secret Manager, Cloud Logging and OS Login metadata.
-  # Without this the apply succeeds and the VM fails at boot.
+  # Private Google Access gives the VM a route to secretmanager.googleapis.com
+  # that does not depend on Cloud NAT. With NAT present it is redundant, but it
+  # keeps secret injection working for a no-NAT deployment - which is viable
+  # once enable_k3s_bootstrap is false and general egress is no longer needed.
+  # It also keeps Google API traffic off the NAT: no port pressure, no egress
+  # charges, shorter path.
   private_ip_google_access = true
 }
 

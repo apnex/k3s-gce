@@ -56,16 +56,6 @@ variable "network_tags" {
   default     = null
 }
 
-# ── VM SA roles ─────────────────────────────────────────────────────
-variable "vm_roles" {
-  description = "Project IAM roles granted to the VM runtime service account."
-  type        = list(string)
-  default = [
-    "roles/logging.logWriter",
-    "roles/monitoring.metricWriter",
-  ]
-}
-
 # ── secret / env injection (app-agnostic) ───────────────────────────
 # Container names are `<scope>-<KEY>`. Each key's scope is either the VM's own
 # name (per-VM isolation) or a shared label (cross-VM sharing):

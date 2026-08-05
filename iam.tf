@@ -7,13 +7,9 @@ resource "google_service_account" "vm" {
   description  = "Runtime SA for the internal-only k3s VM"
 }
 
-resource "google_project_iam_member" "vm_roles" {
-  for_each = toset(var.vm_roles)
-
-  project = var.project_id
-  role    = each.value
-  member  = "serviceAccount:${google_service_account.vm.email}"
-}
+# No project-level IAM is granted to this SA. The VM reads its secrets through
+# per-secret accessor bindings (secrets.tf), which is the only authorisation it
+# needs. Callers wanting to grant it more can use the vm_sa_email output.
 
 # ── Inbound SSH login identity (OS Login) ───────────────────────────
 # Optional. Distinct from the VM runtime SA: this identity only logs IN, it

@@ -21,15 +21,19 @@ gcloud auth list && terraform version
 
 ### prerequisites
 
-You provide these. Two of them fail at **boot**, not at apply, so a green `terraform apply` is not proof they are right.
+You provide these. The routing ones fail at **boot**, not at apply, so a green `terraform apply` is not proof they are right.
 
 - **A subnetwork in `var.region`** - passed as `subnetwork`.
-- **Private Google Access enabled on it.** The VM has no public IP, so this is what lets it reach Secret Manager, Cloud Logging and OS Login metadata. Without it the apply succeeds and the VM cannot fetch its secrets.
-- **Outbound egress**, via Cloud NAT or equivalent, whenever `enable_k3s_bootstrap` is true. First boot clones the bring-up repo and downloads the k3s installer. Without it the apply succeeds and no cluster appears.
+- **A route to `secretmanager.googleapis.com`.** The VM has no public IP and fetches every secret over that endpoint. Either Private Google Access on the subnet or Cloud NAT satisfies it. Without one, the apply succeeds and the env file comes up empty.
+- **General internet egress**, via Cloud NAT or equivalent, whenever `enable_k3s_bootstrap` is true. First boot clones the bring-up repo and downloads the k3s installer, neither of which is a Google API, so PGA cannot serve this. Without it the apply succeeds and no cluster appears.
 - **An IAP-SSH firewall rule** allowing `35.235.240.0/20` to `tcp:22`, targeting the module's `network_tags` output. Without it the VM is unreachable.
-- **Enabled APIs**: `compute`, `iam`, `cloudresourcemanager`, `iap`, `logging`, `monitoring`, `secretmanager`.
+- **Enabled APIs**: `compute`, `iam`, `cloudresourcemanager`, `iap`, `secretmanager`.
 
-`examples/hermes-vm/network.tf` is a working reference for all five.
+The metadata server needs nothing: it is link-local at `169.254.169.254`, and it is where the VM gets its config, its access token, and its OS Login data. SSH over IAP does not depend on PGA or NAT.
+
+Enabling both PGA and NAT is the recommended shape, and what `examples/hermes-vm/network.tf` does. PGA is redundant while NAT is present, but it keeps secret injection working if you later set `enable_k3s_bootstrap = false` and drop NAT.
+
+The module writes **no project-level IAM** and enables **no APIs**. Its service account is authorised per-secret only.
 
 ### main.tf
 ```

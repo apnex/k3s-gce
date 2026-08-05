@@ -8,7 +8,7 @@ Reference deployments for the module at the repo root.
 `shared/` owns Secret Manager containers used by more than one deployment, which per-VM deployments then reference read-only.
 
 The module's scope is the VM alone.\
-`hermes-vm/network.tf` supplies what it expects you to already have - enabled APIs, a VPC, a subnet with Private Google Access, an IAP-SSH firewall rule targeting the module's `network_tags` output, and Cloud NAT for egress. Two of those fail at boot rather than at apply, so read [`../README.md`](../README.md) before pointing the module at a subnet of your own.
+`hermes-vm/network.tf` supplies what it expects you to already have - enabled APIs, a VPC, a subnet with Private Google Access, an IAP-SSH firewall rule targeting the module's `network_tags` output, and Cloud NAT for egress. The routing pieces fail at boot rather than at apply, so read [`../README.md`](../README.md) before pointing the module at a subnet of your own.
 
 These are templates, not deployments.\
 They hold `*.tfvars.example` files and module wiring, never real values or state.\
