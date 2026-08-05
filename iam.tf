@@ -56,12 +56,25 @@ data "google_client_openid_userinfo" "provider" {
   count = var.enable_ssh_target_login ? 1 : 0
 }
 
+locals {
+  # The deploying identity is a service account when Terraform authenticates
+  # with an SA key or impersonation, and a human when it uses gcloud ADC. IAM
+  # member prefixes differ, and the wrong one is rejected at apply, so pick from
+  # the email shape rather than assuming.
+  tf_identity_email = var.enable_ssh_target_login ? data.google_client_openid_userinfo.provider[0].email : ""
+  tf_identity_member = (
+    endswith(local.tf_identity_email, ".gserviceaccount.com")
+    ? "serviceAccount:${local.tf_identity_email}"
+    : "user:${local.tf_identity_email}"
+  )
+}
+
 resource "google_service_account_iam_member" "tf_impersonate_ssh_target" {
   count = var.enable_ssh_target_login ? 1 : 0
 
   service_account_id = google_service_account.ssh_target[0].name
   role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:${data.google_client_openid_userinfo.provider[0].email}"
+  member             = local.tf_identity_member
 }
 
 # actAs on ITSELF: logging in as the SA via OS Login is an actAs op. Granted on

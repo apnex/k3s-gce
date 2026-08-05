@@ -46,7 +46,7 @@ variable "boot_disk_size_gb" {
 # attaches to a subnetwork you already own. See README for what that
 # subnetwork must provide.
 variable "subnetwork" {
-  description = "Self link or ID of an existing subnetwork to attach the VM to. Must be in var.region, must have Private Google Access enabled (the VM has no public IP and needs it to reach Secret Manager, Logging and OS Login), and must have outbound internet egress (Cloud NAT or equivalent) when enable_k3s_bootstrap is true."
+  description = "Self link or ID of an existing subnetwork to attach the VM to. Must be in var.region. The VM has no public IP, so the subnet must give it a route to secretmanager.googleapis.com -- either Private Google Access or Cloud NAT satisfies that. General internet egress (Cloud NAT or equivalent) is additionally required when enable_k3s_bootstrap is true, since the bring-up repo and k3s installer are not Google APIs."
   type        = string
 }
 

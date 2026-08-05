@@ -69,6 +69,11 @@ if [[ -n "$PROJECT" && -n "$SECRET_MAP" ]]; then
 	TOKEN=$(mfetch "$MD/service-accounts/default/token" | sed -n 's/.*"access_token":[[:space:]]*"\([^"]*\)".*/\1/p' || true)
 	[[ -n "$TOKEN" ]] || echo "WARN: no access token from metadata server — skipping secret injection" >&2
 
+	# Create the target directory FIRST -- the temp file lives beside the env
+	# file, so a custom k3s-env-file under a missing directory would abort the
+	# whole script here under `set -e`.
+	mkdir -p "$(dirname "$ENV_FILE")"
+
 	TMP="${ENV_FILE}.tmp.$$"
 	: > "$TMP"
 	chmod 600 "$TMP"
@@ -105,7 +110,6 @@ if [[ -n "$PROJECT" && -n "$SECRET_MAP" ]]; then
 		written=$((written + 1))
 	done
 
-	mkdir -p "$(dirname "$ENV_FILE")"
 	mv "$TMP" "$ENV_FILE"
 	echo "env file: $written written, $missed missed -> $ENV_FILE"
 
