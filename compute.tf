@@ -6,7 +6,7 @@ resource "google_compute_address" "vm_internal" {
   name         = "${var.name_prefix}-vm-ip"
   address_type = "INTERNAL"
   subnetwork   = var.subnetwork
-  region       = var.region
+  region       = local.region
 }
 
 resource "google_compute_instance" "vm" {

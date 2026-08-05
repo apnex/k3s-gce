@@ -4,16 +4,20 @@ variable "project_id" {
   type        = string
 }
 
-variable "region" {
-  description = "GCP region for all regional resources"
-  type        = string
-  default     = "australia-southeast1"
-}
-
+# No region input. A GCE zone always contains its region, so the module derives
+# it (see locals in main.tf). That makes a region/zone mismatch unrepresentable
+# rather than a confusing apply-time failure.
 variable "zone" {
-  description = "GCP zone for the VM"
+  description = "GCP zone for the VM. The region is derived from it, and var.subnetwork must be in that region."
   type        = string
   default     = "australia-southeast1-a"
+
+  validation {
+    # Catches a region being passed where a zone belongs, which would otherwise
+    # surface as an unhelpful error on the internal address.
+    condition     = can(regex("^[a-z0-9-]+-[a-z]$", var.zone))
+    error_message = "zone must be a GCE zone ending in a zone letter, e.g. australia-southeast1-a, not a region."
+  }
 }
 
 variable "name_prefix" {
@@ -46,7 +50,7 @@ variable "boot_disk_size_gb" {
 # attaches to a subnetwork you already own. See README for what that
 # subnetwork must provide.
 variable "subnetwork" {
-  description = "Self link or ID of an existing subnetwork to attach the VM to. Must be in var.region. The VM has no public IP, so the subnet must give it a route to secretmanager.googleapis.com -- either Private Google Access or Cloud NAT satisfies that. General internet egress (Cloud NAT or equivalent) is additionally required when enable_k3s_bootstrap is true, since the bring-up repo and k3s installer are not Google APIs."
+  description = "Self link or ID of an existing subnetwork to attach the VM to. Must be in the region derived from var.zone. The VM has no public IP, so the subnet must give it a route to secretmanager.googleapis.com -- either Private Google Access or Cloud NAT satisfies that. General internet egress (Cloud NAT or equivalent) is additionally required when enable_k3s_bootstrap is true, since the bring-up repo and k3s installer are not Google APIs."
   type        = string
 }
 

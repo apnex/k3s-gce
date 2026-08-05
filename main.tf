@@ -11,6 +11,11 @@
 # App-agnostic: the secret names, env-file path, and k3s repo are all inputs.
 
 locals {
+  # A GCE zone is always "<region>-<letter>", so the region is derivable and
+  # need not be an input. Deriving it also guarantees the static internal IP
+  # lands in the same region as the instance.
+  region = replace(var.zone, "/-[a-z]$/", "")
+
   # App-neutral default - derived from name_prefix, no embedded app identity.
   env_file_path = coalesce(var.env_file_path, "/root/${var.name_prefix}.env")
 

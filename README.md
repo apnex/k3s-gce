@@ -26,7 +26,7 @@ gcloud auth list && terraform version
 
 You provide these. The routing ones fail at **boot**, not at apply, so a green `terraform apply` is not proof they are right.
 
-- **A subnetwork in `var.region`** - passed as `subnetwork`.
+- **A subnetwork** in the region derived from `var.zone` - passed as `subnetwork`. The module takes no `region` input; a GCE zone always contains its region, so a mismatch is unrepresentable.
 - **A route to `secretmanager.googleapis.com`.** The VM has no public IP and fetches every secret over that endpoint. Either Private Google Access on the subnet or Cloud NAT satisfies it. Without one, the apply succeeds and the env file comes up empty.
 - **General internet egress**, via Cloud NAT or equivalent, whenever `enable_k3s_bootstrap` is true. First boot clones the bring-up repo and downloads the k3s installer, neither of which is a Google API, so PGA cannot serve this. Without it the apply succeeds and no cluster appears.
 - **An IAP-SSH firewall rule** allowing `35.235.240.0/20` to `tcp:22`, targeting the module's `network_tags` output. Without it the VM is unreachable.
@@ -40,7 +40,8 @@ Enabling both PGA and NAT is the recommended shape, and what `examples/hermes-vm
 ```
 locals {
 	project_id	= "your-project-id"
-	region		= "australia-southeast1"
+	region		= "australia-southeast1"	# for the provider and the subnet lookup
+	zone		= "australia-southeast1-a"	# the module derives its region from this
 	name_prefix	= "demo"
 	subnet_name	= "my-existing-subnet"
 	secret_keys	= [
@@ -76,7 +77,7 @@ module "k3s-gce" {
 	}
 
 	project_id	= local.project_id
-	region		= local.region
+	zone		= local.zone
 	name_prefix	= local.name_prefix
 	secret_keys	= local.secret_keys
 

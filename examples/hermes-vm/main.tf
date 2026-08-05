@@ -45,8 +45,8 @@ module "k3s_gce" {
     google.ssh_login = google.ssh_login
   }
 
-  project_id  = var.project_id
-  region      = var.region
+  project_id = var.project_id
+  # No region input - the module derives it from zone.
   zone        = var.zone
   name_prefix = var.name_prefix
 
