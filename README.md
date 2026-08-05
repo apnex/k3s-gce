@@ -6,7 +6,7 @@ Scope is the VM. Stands up:
 
 - least-privilege Rocky 9 VM with OS Login, no public IP
 - application secrets in Secret Manager, fetched into an env file on boot
-- k3s self-assembly on first boot (optional)
+- (optional) k3s self-assembly on first boot
 
 The VPC, subnet, firewall rules, Cloud NAT and project API enablement are **not** in scope.
 The module attaches to a subnetwork you already own.
