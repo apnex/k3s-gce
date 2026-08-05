@@ -4,7 +4,7 @@ Self-assembling k3s VM on GCE.
 
 Scope is the VM. Stands up:
 
-- least-privilege Rocky 9 VM with OS Login, no public IP
+- least-privilege Rocky VM with OS Login, no public IP - image follows `boot_disk_image`
 - application secrets in Secret Manager, fetched into an env file on boot
 - (optional) k3s self-assembly on first boot
 
@@ -23,7 +23,8 @@ gcloud auth list && terraform version
 
 ### prerequisites
 
-You provide these. The routing ones fail at **boot**, not at apply, so a green `terraform apply` is not proof they are right.
+You provide these.\
+The routing ones fail at **boot**, not at apply, so a green `terraform apply` is not proof they are right.
 
 - **A subnetwork** in the region derived from `var.zone` - passed as `subnetwork`. The module takes no `region` input; a GCE zone always contains its region, so a mismatch is unrepresentable.
 - **A route to `secretmanager.googleapis.com`.** The VM has no public IP and fetches every secret over that endpoint. Either Private Google Access on the subnet or Cloud NAT satisfies it. Without one, the apply succeeds and the env file comes up empty.
@@ -31,9 +32,11 @@ You provide these. The routing ones fail at **boot**, not at apply, so a green `
 - **An IAP-SSH firewall rule** allowing `35.235.240.0/20` to `tcp:22`, targeting the module's `network_tags` output. Without it the VM is unreachable.
 - **Enabled APIs**: `compute`, `iam`, `cloudresourcemanager`, `iap`, `secretmanager`.
 
-The metadata server needs nothing: it is link-local at `169.254.169.254`, and it is where the VM gets its config, its access token, and its OS Login data. SSH over IAP does not depend on PGA or NAT.
+The metadata server needs nothing: it is link-local at `169.254.169.254`, and it is where the VM gets its config, its access token, and its OS Login data.\
+SSH over IAP does not depend on PGA or NAT.
 
-Enabling both PGA and NAT is the recommended shape, and what `examples/hermes-vm/network.tf` does. PGA is redundant while NAT is present, but it keeps secret injection working if you later set `enable_k3s_bootstrap = false` and drop NAT.
+Enabling both PGA and NAT is the recommended shape, and what `examples/hermes-vm/network.tf` does.\
+PGA is redundant while NAT is present, but it keeps secret injection working if you later set `enable_k3s_bootstrap = false` and drop NAT.
 
 ### main.tf
 ```
@@ -109,21 +112,26 @@ Those values land in `terraform.tfstate` in plaintext, so treat state as sensiti
 
 ### notes
 
-Everything that runs inside the VM lives in `guest/`, delivered through instance metadata. The scripts are static and generic, parameterised entirely by metadata keys, with no Terraform templating.
+Everything that runs inside the VM lives in `guest/`, delivered through instance metadata.\
+The scripts are static and generic, parameterised entirely by metadata keys, with no Terraform templating.
 
 Keys are named `<duty>-<thing>`, and the two duties are named for what they are:
 
 - **`env-*`** and `gce-env.service` are generic. Resolving Secret Manager values into an env file has nothing to do with k3s, and this half transplants to another GCE module unchanged.
 - **`k3s-*`** and `k3s-bootstrap.service` are this module's installer, and say so.
 
-The reusable piece is the pattern - `guest/` assets delivered by metadata, one systemd unit per duty, and the env contract below - not the k3s script itself. A module installing something else keeps the first half and swaps the second.
+The reusable piece is the pattern - `guest/` assets delivered by metadata, one systemd unit per duty, and the env contract below - not the k3s script itself.\
+A module installing something else keeps the first half and swaps the second.
 
 Provisioning is split into two units, one duty each:
 
 - **`gce-env.service`** resolves Secret Manager values into the env file. Runs every boot, idempotent.
 - **`k3s-bootstrap.service`** self-assembles k3s. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/bootstrapped`.
 
-`guest/startup.sh` is the GCE startup-script and provisions nothing itself. It materialises the two scripts and two units from metadata, then drives them. Materialising before starting is what keeps a rebooted VM on the current module version rather than on whatever the last boot left behind.
+`guest/startup.sh` is the GCE startup-script and provisions nothing itself.\
+It materialises the two scripts and two units from metadata, then drives them.
+
+Materialising before starting is what keeps a rebooted VM on the current module version rather than on whatever the last boot left behind.
 
 They share no runtime state, so a secret refresh cannot disturb k3s.
 
@@ -152,9 +160,14 @@ sudo systemctl start k3s-bootstrap
 | `<env_file_path>` | bash `%q`, 0600 | root login shells, via `/etc/profile.d` |
 | `/run/gce-env/env` | `EnvironmentFile=`, 0600 in a 0700 tmpfs dir | systemd units |
 
-They are not interchangeable. systemd's parser does not understand bash ANSI-C quoting, so a `%q` value like `$'a\nb'` is silently mangled rather than rejected. A multi-line value cannot be expressed in `EnvironmentFile=` at all, so it is published there as `KEY_B64` holding base64 - which is how a PEM key survives intact.
+They are not interchangeable.\
+systemd's parser does not understand bash ANSI-C quoting, so a `%q` value like `$'a\nb'` is silently mangled rather than rejected.
 
-A follow-on install unit consumes the env by declaring two lines. Suppose netbird:
+A multi-line value cannot be expressed in `EnvironmentFile=` at all, so it is published there as `KEY_B64` holding base64 - which is how a PEM key survives intact.
+
+A follow-on install unit consumes the env by declaring two lines.
+
+Suppose netbird:
 ```
 [Unit]
 After=gce-env.service
@@ -167,7 +180,8 @@ EnvironmentFile=/run/gce-env/env
 ExecStart=/opt/k3s-gce/netbird.sh
 ```
 
-Its script then reads `NETBIRD_SETUP_KEY` straight from its own environment, with no shell and no human in the path. Add the key to `secret_keys` and it appears there on the next boot.
+Its script then reads `NETBIRD_SETUP_KEY` straight from its own environment, with no shell and no human in the path.\
+Add the key to `secret_keys` and it appears there on the next boot.
 
 `k3s-bootstrap` already consumes it this way, which is what puts the secrets in front of the bring-up entrypoint.
 
