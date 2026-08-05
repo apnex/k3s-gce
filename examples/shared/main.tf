@@ -1,7 +1,7 @@
 # Shared secrets — containers referenced by MULTIPLE k3s-gce deployments.
 #
 # One writer, many readers: this root OWNS the shared containers + their values;
-# per-VM envs (env/<name>/) only REFERENCE them (the k3s-vm module grants their
+# per-VM envs (env/<name>/) only REFERENCE them (the k3s-gce module grants their
 # VM SA read access via a secret_keys entry with scope = this label).
 #
 # Container naming matches the module: `<scope-label>-<KEY>`. The label here is

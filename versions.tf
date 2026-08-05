@@ -1,4 +1,4 @@
-# Provider requirements for the k3s-vm module.
+# Provider requirements for the k3s-gce module.
 #
 # google.ssh_login is an OPTIONAL aliased provider the caller passes in when
 # enable_ssh_target_login = true. It must impersonate the ssh-target SA so the

@@ -1,4 +1,4 @@
-# k3s-vm — a reusable, internal-only k3s VM on GCE.
+# k3s-gce — a reusable, internal-only k3s VM on GCE.
 #
 # Stands up: custom VPC + IAP-SSH + Cloud NAT, a least-privilege Rocky VM with
 # OS Login, app secrets in Secret Manager fetched into an env file on boot, an

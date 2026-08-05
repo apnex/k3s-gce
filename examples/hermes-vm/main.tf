@@ -1,6 +1,6 @@
 # Example: the hermes kate substrate on your-project-id.
 #
-# Instantiates the k3s-vm module with kate-flavored secret naming. All
+# Instantiates the k3s-gce module with kate-flavored secret naming. All
 # deployment-specific, non-secret config lives in terraform.tfvars; secret
 # VALUES go in a gitignored secrets.auto.tfvars (see the .example).
 
@@ -37,8 +37,8 @@ provider "google" {
   impersonate_service_account = "${var.name_prefix}-ssh-target@${var.project_id}.iam.gserviceaccount.com"
 }
 
-module "k3s_vm" {
-  source = "../../modules/k3s-vm"
+module "k3s_gce" {
+  source = "../.."
 
   providers = {
     google           = google

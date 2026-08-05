@@ -2,7 +2,7 @@
 ## startup.sh — generic boot-time provisioner for a k3s-gce VM.
 ##
 ## Runs as root on every boot (GCE startup-script metadata key). Fully
-## parameterised via VM metadata (set by the k3s-vm Terraform module) — this
+## parameterised via VM metadata (set by the k3s-gce Terraform module) — this
 ## script is app-agnostic and needs no editing per deployment.
 ##
 ## Stages:
