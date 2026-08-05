@@ -10,12 +10,12 @@
 ## The marker below is the persistent record the unit condition reads.
 ##
 ## Metadata inputs (instance/attributes):
-##   k3s-bootstrap      on|off
-##   k3s-repo           git repo cloned for bring-up
-##   k3s-ref            git ref of k3s-repo (branch, tag, or commit SHA)
-##   k3s-up-entrypoint  path within the repo to the bring-up entrypoint
+##   bootstrap-enabled      on|off
+##   bootstrap-repo           git repo cloned for bring-up
+##   bootstrap-ref            git ref of bootstrap-repo (branch, tag, or commit SHA)
+##   bootstrap-entrypoint  path within the repo to the bring-up entrypoint
 ##
-## Output goes to journald:  journalctl -u k3s-gce-bootstrap
+## Output goes to journald:  journalctl -u gce-bootstrap
 ## Dependencies: curl (Rocky 9 base); git, installed on demand.
 
 set -euo pipefail
@@ -32,22 +32,22 @@ mfetch() {
 }
 md() { mfetch "$MD/attributes/$1" || true; }
 
-BOOTSTRAP=$(md k3s-bootstrap)
-REPO=$(md k3s-repo)
-REF=$(md k3s-ref)
-ENTRY=$(md k3s-up-entrypoint)
+BOOTSTRAP=$(md bootstrap-enabled)
+REPO=$(md bootstrap-repo)
+REF=$(md bootstrap-ref)
+ENTRY=$(md bootstrap-entrypoint)
 
 STATE_DIR=/root/k3s-gce
 MARKER="$STATE_DIR/bootstrapped"
 mkdir -p "$STATE_DIR"
 
 if [[ "${BOOTSTRAP:-off}" != "on" ]]; then
-	echo "k3s: bootstrap disabled (k3s-bootstrap != on)"
+	echo "k3s: bootstrap disabled (bootstrap-enabled != on)"
 	exit 0
 fi
 
 if [[ -z "$REPO" || -z "$ENTRY" ]]; then
-	echo "k3s: bootstrap on but k3s-repo or k3s-up-entrypoint missing -- skipping"
+	echo "k3s: bootstrap on but bootstrap-repo or bootstrap-entrypoint missing -- skipping"
 	exit 0
 fi
 
@@ -69,10 +69,10 @@ fi
 CLONE_DIR="/opt/$(basename "${REPO%.git}")"
 
 # Guard the rm -rf below: CLONE_DIR is derived from operator-supplied metadata,
-# and a degenerate k3s-repo (e.g. "/") would otherwise resolve to /opt itself.
+# and a degenerate bootstrap-repo (e.g. "/") would otherwise resolve to /opt itself.
 case "$CLONE_DIR" in
 	/opt/?*) : ;;
-	*) echo "ERROR: refusing to use clone dir '$CLONE_DIR' derived from k3s-repo '$REPO'" >&2; exit 1 ;;
+	*) echo "ERROR: refusing to use clone dir '$CLONE_DIR' derived from bootstrap-repo '$REPO'" >&2; exit 1 ;;
 esac
 
 # A complete clone has .git AND the entrypoint. Anything else (missing, partial,

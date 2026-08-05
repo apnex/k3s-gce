@@ -15,4 +15,4 @@ TimeoutStartSec=300
 # script, which materialises a fresh env.sh from metadata and then restarts
 # this unit. Enabling it via WantedBy would start it earlier in boot using the
 # PREVIOUS boot's script, and it would then run a second time once the startup
-# script refreshed it. `systemctl restart k3s-gce-env` works regardless.
+# script refreshed it. `systemctl restart gce-env` works regardless.
