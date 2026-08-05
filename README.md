@@ -7,7 +7,7 @@ Stands up:
 - custom VPC with IAP-SSH ingress and Cloud NAT egress
 - least-privilege Rocky 9 VM with OS Login
 - application secrets in Secret Manager, fetched into an env file on boot
-- pod→host SSH login identity (optional)
+- pod->host SSH login identity (optional)
 - k3s self-assembly on first boot (optional)
 
 Assumes an authenticated `terraform` and `gcloud` against a GCP project, with `compute`, `iam`, `secretmanager`, and `serviceusage` admin rights.
@@ -74,7 +74,7 @@ terraform apply -auto-approve
 ### secrets
 
 Containers are named `<scope>-<KEY>`.\
-A `self` scope — the default — is created by the module under `name_prefix`.\
+A `self` scope - the default - is created by the module under `name_prefix`.\
 A shared label references an already-existing container read-only, and the module grants the VM SA read access without creating or writing it.
 
 `secret_values` writes Secret Manager versions for self-scoped keys only.\
@@ -98,7 +98,7 @@ Subsequent applies need only `terraform apply`.
 ### org grant
 
 The `ssh-target` SA is out-of-domain, so OS Login treats it as external.\
-An org admin must grant it `compute.osLoginExternalUser` at the organization node — the role returns HTTP 400 if bound at project level.
+An org admin must grant it `compute.osLoginExternalUser` at the organization node - the role returns HTTP 400 if bound at project level.
 
 Grant it once per deployment:
 ```
@@ -116,10 +116,10 @@ sudo systemctl restart google-guest-agent
 
 Recreating the SA mints a new `unique_id` and orphans the grant, so re-grant after any destroy/recreate of the identity.
 
-### without pod→host SSH
+### without pod->host SSH
 
 Setting `enable_ssh_target_login` to false skips the login identity and both prerequisites above.\
-Still pass the `google.ssh_login` alias — Terraform requires declared aliases to be wired even when unused.
+Still pass the `google.ssh_login` alias - Terraform requires declared aliases to be wired even when unused.
 
 ```
 enable_ssh_target_login = false

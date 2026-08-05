@@ -2,7 +2,7 @@
 
 Reference deployments for the module at the repo root.
 
-**Status:** working — validated on a single deployment.
+**Status:** working - validated on a single deployment.
 
 `hermes-vm/` stands up one k3s VM.\
 `shared/` owns Secret Manager containers used by more than one deployment, which per-VM deployments then reference read-only.
