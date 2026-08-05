@@ -12,7 +12,10 @@ Scope is the VM. Stands up:
 The VPC, subnet, firewall rules, Cloud NAT and project API enablement are **not** in scope.
 The module attaches to a subnetwork you already own.
 
-Assumes an authenticated `terraform` and `gcloud` against a GCP project, with `compute`, `iam`, `secretmanager`, and `serviceusage` admin rights.
+It writes **no project-level IAM** and enables **no APIs**.
+Its service account is authorised per-secret, and its OS Login grant is bound to the instance rather than the project.
+
+Assumes an authenticated `terraform` and `gcloud` against a GCP project, with `compute`, `iam` and `secretmanager` admin rights.
 
 Confirm the tooling before starting:
 ```
@@ -33,14 +36,13 @@ The metadata server needs nothing: it is link-local at `169.254.169.254`, and it
 
 Enabling both PGA and NAT is the recommended shape, and what `examples/hermes-vm/network.tf` does. PGA is redundant while NAT is present, but it keeps secret injection working if you later set `enable_k3s_bootstrap = false` and drop NAT.
 
-The module writes **no project-level IAM** and enables **no APIs**. Its service account is authorised per-secret only.
-
 ### main.tf
 ```
 locals {
 	project_id	= "your-project-id"
 	region		= "australia-southeast1"
 	name_prefix	= "demo"
+	subnet_name	= "my-existing-subnet"
 	secret_keys	= [
 		{ key = "APP_TOKEN" },				# self   -> demo-APP_TOKEN
 		{ key = "LLM_API_KEY", scope = "shared" }	# shared -> shared-LLM_API_KEY
@@ -49,6 +51,12 @@ locals {
 
 provider "google" {
 	project	= local.project_id
+	region	= local.region
+}
+
+# the module attaches to a subnet you already own -- see prerequisites
+data "google_compute_subnetwork" "target" {
+	name	= local.subnet_name
 	region	= local.region
 }
 
@@ -73,14 +81,13 @@ module "k3s-gce" {
 	name_prefix	= local.name_prefix
 	secret_keys	= local.secret_keys
 
-	# an existing subnet you own -- see prerequisites
-	subnetwork	= google_compute_subnetwork.subnet.id
+	subnetwork	= data.google_compute_subnetwork.target.id
 }
 
 # target the tags the module actually applied, so the two cannot drift
 resource "google_compute_firewall" "allow_iap_ssh" {
 	name		= "${local.name_prefix}-allow-iap-ssh"
-	network		= google_compute_network.vpc.id
+	network		= data.google_compute_subnetwork.target.network
 	direction	= "INGRESS"
 
 	allow {
@@ -156,7 +163,7 @@ Recreating the SA mints a new `unique_id` and orphans the grant, so re-grant aft
 
 ### without pod->host SSH
 
-Setting `enable_ssh_target_login` to false skips the login identity and both prerequisites above.\
+Setting `enable_ssh_target_login` to false skips the login identity, and with it the two-phase first apply and the org grant.\
 Still pass the `google.ssh_login` alias - Terraform requires declared aliases to be wired even when unused.
 
 ```
