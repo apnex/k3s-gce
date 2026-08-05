@@ -8,10 +8,10 @@ Scope is the VM. Stands up:
 - application secrets in Secret Manager, fetched into an env file on boot
 - (optional) k3s self-assembly on first boot
 
-The VPC, subnet, firewall rules, Cloud NAT and project API enablement are **not** in scope.
+The VPC, subnet, firewall rules, Cloud NAT and project API enablement are **not** in scope.\
 The module attaches to a subnetwork you already own.
 
-It writes **no project-level IAM**, enables **no APIs**, and needs only a single `google` provider.
+It writes **no project-level IAM**, enables **no APIs**, and needs only a single `google` provider.\
 Its service account is authorised per-secret and nothing else.
 
 Assumes an authenticated `terraform` and `gcloud` against a GCP project, with `compute`, `iam` and `secretmanager` admin rights.
