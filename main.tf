@@ -24,22 +24,11 @@ locals {
   # exported as an output so the caller wires its rule to what was applied.
   network_tags = coalesce(var.network_tags, ["${var.name_prefix}-vm"])
 
-  # The module owns the ssh-target keys when login is enabled — operators must
-  # NOT list them in var.secret_keys. Always self-scoped: a host key is
-  # intrinsically per-VM and never shared. USER + KEY get values (secrets.tf);
-  # HOST is a container with no version on purpose (the in-pod wrapper falls
-  # back to the node IP via the Downward API when SSH_TARGET_HOST is unset).
-  ssh_target_keys = var.enable_ssh_target_login ? [
-    { key = "SSH_TARGET_USER", scope = "self" },
-    { key = "SSH_TARGET_HOST", scope = "self" },
-    { key = "SSH_TARGET_KEY", scope = "self" },
-  ] : []
-
   # Normalise every requested key into its container name. scope "self" → the
   # VM's own prefix (name_prefix); any other label → a shared container.
   # Container name is `<scope-or-name_prefix>-<KEY>`.
   keyed = {
-    for e in concat(var.secret_keys, local.ssh_target_keys) : e.key => {
+    for e in var.secret_keys : e.key => {
       shared    = e.scope != "self"
       container = "${e.scope == "self" ? var.name_prefix : e.scope}-${e.key}"
     }

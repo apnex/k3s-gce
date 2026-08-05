@@ -47,39 +47,3 @@ resource "google_secret_manager_secret_iam_member" "shared_accessor" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.vm.email}"
 }
-
-# ── ssh-target keypair + OS Login registration (optional) ───────────
-# Generated declaratively at apply — never on the operator's laptop. Key
-# material lives in terraform.tfstate (treat state as sensitive).
-resource "tls_private_key" "ssh_target" {
-  count     = var.enable_ssh_target_login ? 1 : 0
-  algorithm = "ED25519"
-}
-
-# Register the pubkey to the ssh-target SA's OS Login profile, via the
-# impersonating provider (importSshPublicKey is self-only).
-resource "google_os_login_ssh_public_key" "ssh_target" {
-  count = var.enable_ssh_target_login ? 1 : 0
-
-  provider   = google.ssh_login
-  user       = google_service_account.ssh_target[0].email
-  project    = var.project_id
-  key        = tls_private_key.ssh_target[0].public_key_openssh
-  depends_on = [google_service_account_iam_member.tf_impersonate_ssh_target]
-}
-
-# Private key → SSH_TARGET_KEY version.
-resource "google_secret_manager_secret_version" "ssh_target_key" {
-  count       = var.enable_ssh_target_login ? 1 : 0
-  secret      = google_secret_manager_secret.this["SSH_TARGET_KEY"].id
-  secret_data = tls_private_key.ssh_target[0].private_key_openssh
-}
-
-# SSH_TARGET_USER = the SA's OS Login POSIX username (deterministically
-# sa_<numeric-unique-id>). The in-pod wrapper normalises this non-root login
-# to sudo.
-resource "google_secret_manager_secret_version" "ssh_target_user" {
-  count       = var.enable_ssh_target_login ? 1 : 0
-  secret      = google_secret_manager_secret.this["SSH_TARGET_USER"].id
-  secret_data = "sa_${google_service_account.ssh_target[0].unique_id}"
-}

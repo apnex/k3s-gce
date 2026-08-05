@@ -38,9 +38,6 @@ terraform apply
 `terraform.tfvars` carries deployment config and `secrets.auto.tfvars` carries secret values.\
 Both are gitignored, as is the state file that ends up holding those secret values in plaintext.
 
-A clean first apply runs in two phases while `enable_ssh_target_login` is true, and the login identity needs a grant only an org admin can issue.\
-Both are part of the module contract in [`../README.md`](../README.md).
-
 ### shared secrets
 
 Deploy `shared/` before any VM that references a shared scope.\
@@ -102,9 +99,6 @@ Destroy a deployment from its own directory:
 cd env/hermes-vm
 terraform destroy
 ```
-
-Recreating a deployment mints a new `ssh-target` `unique_id`, which orphans the org-level OS Login grant.\
-Re-grant it as described in [`../README.md`](../README.md).
 
 ---
 

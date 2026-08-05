@@ -1,5 +1,4 @@
-# Dedicated least-privilege VM runtime service account + optional inbound SSH
-# login identity (used by an in-pod wrapper to reach the host via OS Login).
+# Dedicated least-privilege VM runtime service account.
 
 resource "google_service_account" "vm" {
   account_id   = "${var.name_prefix}-vm-sa"
@@ -10,79 +9,3 @@ resource "google_service_account" "vm" {
 # No project-level IAM is granted to this SA. The VM reads its secrets through
 # per-secret accessor bindings (secrets.tf), which is the only authorisation it
 # needs. Callers wanting to grant it more can use the vm_sa_email output.
-
-# ── Inbound SSH login identity (OS Login) ───────────────────────────
-# Optional. Distinct from the VM runtime SA: this identity only logs IN, it
-# never runs the VM or reads secrets. The keypair is in secrets.tf; its pubkey
-# is registered to this SA's OS Login profile and the pod lands as sa_<id>.
-resource "google_service_account" "ssh_target" {
-  count = var.enable_ssh_target_login ? 1 : 0
-
-  account_id   = "${var.name_prefix}-ssh-target"
-  display_name = "Inbound SSH login identity for the in-pod ssh-target wrapper"
-  description  = "OS Login identity the bot lands as on the host; not the VM runtime SA"
-}
-
-# osAdminLogin = login + passwordless sudo (google-sudoers). The in-pod wrapper
-# normalises the non-root sa_<id> login to sudo for privilege.
-#
-# Bound on THIS INSTANCE, not the project. A project-level binding would let
-# the ssh-target SA sudo-SSH into every VM in the project; the module only
-# needs it to reach the one it created.
-resource "google_compute_instance_iam_member" "ssh_target_oslogin" {
-  count = var.enable_ssh_target_login ? 1 : 0
-
-  project       = var.project_id
-  zone          = google_compute_instance.vm.zone
-  instance_name = google_compute_instance.vm.name
-  role          = "roles/compute.osAdminLogin"
-  member        = "serviceAccount:${google_service_account.ssh_target[0].email}"
-}
-
-# ORG-LEVEL PREREQUISITES (NOT manageable here — only an org admin can grant).
-# The ssh-target SA is out-of-domain (@gserviceaccount.com), so OS Login also
-# requires, AT THE ORG NODE (beyond the instance-level osAdminLogin above):
-#   - roles/compute.osLoginExternalUser   (permits the external identity;
-#       cannot be bound at project level — the API returns HTTP 400)
-#   - roles/iam.serviceAccountUser        (actAs — to log in AS the SA)
-# The serviceAccountUser grant below is the tighter, TF-owned self-binding;
-# whether it fully substitutes for an org-level grant depends on the org. See
-# the module README. With those + osAdminLogin + the registered key, the pod
-# logs in as sa_<unique_id> with sudo.
-
-# Identity of the active provider credentials, so we can let it impersonate the
-# ssh-target SA to register the OS Login key AS that SA.
-data "google_client_openid_userinfo" "provider" {
-  count = var.enable_ssh_target_login ? 1 : 0
-}
-
-locals {
-  # The deploying identity is a service account when Terraform authenticates
-  # with an SA key or impersonation, and a human when it uses gcloud ADC. IAM
-  # member prefixes differ, and the wrong one is rejected at apply, so pick from
-  # the email shape rather than assuming.
-  tf_identity_email = var.enable_ssh_target_login ? data.google_client_openid_userinfo.provider[0].email : ""
-  tf_identity_member = (
-    endswith(local.tf_identity_email, ".gserviceaccount.com")
-    ? "serviceAccount:${local.tf_identity_email}"
-    : "user:${local.tf_identity_email}"
-  )
-}
-
-resource "google_service_account_iam_member" "tf_impersonate_ssh_target" {
-  count = var.enable_ssh_target_login ? 1 : 0
-
-  service_account_id = google_service_account.ssh_target[0].name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = local.tf_identity_member
-}
-
-# actAs on ITSELF: logging in as the SA via OS Login is an actAs op. Granted on
-# the SA resource (tightest scope) rather than the org.
-resource "google_service_account_iam_member" "ssh_target_self_user" {
-  count = var.enable_ssh_target_login ? 1 : 0
-
-  service_account_id = google_service_account.ssh_target[0].name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.ssh_target[0].email}"
-}

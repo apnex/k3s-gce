@@ -12,10 +12,6 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 6.0"
     }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "~> 4.0"
-    }
   }
 }
 
@@ -25,25 +21,8 @@ provider "google" {
   credentials = var.credentials_file != null ? file(var.credentials_file) : null
 }
 
-# Impersonates the ssh-target SA so the module can register its OS Login key AS
-# that SA (importSshPublicKey is self-only). The SA email is constructed from
-# the same naming the module uses, so the provider config stays static. The
-# tokenCreator grant that authorises impersonation is created inside the module.
-provider "google" {
-  alias                       = "ssh_login"
-  project                     = var.project_id
-  region                      = var.region
-  credentials                 = var.credentials_file != null ? file(var.credentials_file) : null
-  impersonate_service_account = "${var.name_prefix}-ssh-target@${var.project_id}.iam.gserviceaccount.com"
-}
-
 module "k3s_gce" {
   source = "../.."
-
-  providers = {
-    google           = google
-    google.ssh_login = google.ssh_login
-  }
 
   project_id = var.project_id
   # No region input - the module derives it from zone.
@@ -57,8 +36,7 @@ module "k3s_gce" {
   secret_values = var.secret_values
   env_file_path = var.env_file_path
 
-  enable_ssh_target_login = var.enable_ssh_target_login
-  enable_k3s_bootstrap    = var.enable_k3s_bootstrap
-  k3s_repo_url            = var.k3s_repo_url
-  k3s_repo_ref            = var.k3s_repo_ref
+  enable_k3s_bootstrap = var.enable_k3s_bootstrap
+  k3s_repo_url         = var.k3s_repo_url
+  k3s_repo_ref         = var.k3s_repo_ref
 }

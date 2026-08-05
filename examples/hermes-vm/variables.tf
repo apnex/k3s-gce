@@ -50,7 +50,7 @@ variable "apis" {
 # `<name_prefix>-<KEY>` the module creates. A shared label → `<label>-<KEY>`,
 # assumed to already exist (module only grants read). Here the LiteLLM proxy
 # creds are shared across deployments under the "kate" label; the rest are
-# per-VM. ssh-target keys are added automatically (always self).
+# per-VM.
 variable "secret_keys" {
   description = "App secrets to provision/fetch as { key, scope } objects (scope defaults to self)"
   type = list(object({
@@ -79,12 +79,6 @@ variable "env_file_path" {
   description = "Where the startup script writes the sourced env file"
   type        = string
   default     = "/root/k3s.env"
-}
-
-variable "enable_ssh_target_login" {
-  description = "Provision the pod→host OS Login identity"
-  type        = bool
-  default     = true
 }
 
 variable "enable_k3s_bootstrap" {

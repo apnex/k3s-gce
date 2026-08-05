@@ -68,7 +68,7 @@ variable "network_tags" {
 #                              module only grants the VM read access (it does
 #                              not create or write shared containers).
 variable "secret_keys" {
-  description = "Application secrets the VM fetches into the env file. Each entry is { key = \"NAME\", scope = \"self\"|\"<shared-label>\" } (scope defaults to \"self\"). self → module creates `<name_prefix>-<KEY>`; a label → module references an existing `<label>-<KEY>` (read-only). The ssh-target keys are added automatically (always self) when enable_ssh_target_login is true — do NOT list them here."
+  description = "Application secrets the VM fetches into the env file. Each entry is { key = \"NAME\", scope = \"self\"|\"<shared-label>\" } (scope defaults to \"self\"). self → module creates `<name_prefix>-<KEY>`; a label → module references an existing `<label>-<KEY>` (read-only)."
   type = list(object({
     key   = string
     scope = optional(string, "self")
@@ -89,7 +89,7 @@ variable "secret_values" {
     # an "Invalid index" crash in secrets.tf. nonsensitive() exposes only KEY
     # names (not values) to the error text.
     condition     = length(setsubtract(keys(nonsensitive(var.secret_values)), [for e in var.secret_keys : e.key if e.scope == "self"])) == 0
-    error_message = "secret_values keys must be SELF-scoped entries in secret_keys. Shared-scoped keys are populated where their container is created (e.g. env/shared/), and SSH_TARGET_* are module-managed."
+    error_message = "secret_values keys must be SELF-scoped entries in secret_keys. Shared-scoped keys are populated where their container is created (e.g. env/shared/)."
   }
 }
 
@@ -97,13 +97,6 @@ variable "env_file_path" {
   description = "Absolute path the startup script writes the sourced env file to. Auto-sourced for root login shells via /etc/profile.d. Defaults to /root/<name_prefix>.env when null."
   type        = string
   default     = null
-}
-
-# ── pod→host SSH login identity (OS Login) ──────────────────────────
-variable "enable_ssh_target_login" {
-  description = "Provision a dedicated 'ssh-target' login SA + generate a keypair + register it in OS Login, and auto-add SSH_TARGET_USER/SSH_TARGET_KEY to the secret set. Requires the google.ssh_login aliased provider AND org-level grants (compute.osLoginExternalUser + iam.serviceAccountUser) on the SA — see module README."
-  type        = bool
-  default     = true
 }
 
 # ── k3s self-assembly ───────────────────────────────────────────────
