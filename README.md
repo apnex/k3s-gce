@@ -70,7 +70,6 @@ provider "google" {
 
 module "k3s-gce" {
 	source		= "github.com/apnex/k3s-gce"
-
 	providers = {
 		google			= google
 		google.ssh_login	= google.ssh_login
@@ -173,4 +172,12 @@ enable_ssh_target_login = false
 ### notes
 
 `startup.sh` is static and generic, parameterised entirely via VM metadata under `k3s-*` keys, with no Terraform templating.\
-It is idempotent: secrets refresh every boot, and k3s self-assembly runs once, guarded by `/var/lib/k3s-gce-bootstrapped`.
+It is idempotent: secrets refresh every boot, and k3s self-assembly runs once, guarded by a marker at `/root/k3s-gce/bootstrapped`.
+
+Operational state lives under `/root/k3s-gce`: the marker, plus `/root/k3s-gce/bootstrap.lock`, which serialises a hand-run of the script against an in-flight boot. The boot log is separate, at `/var/log/k3s-gce-bootstrap.log`.
+
+To force a re-bootstrap, remove the marker and re-run the script:
+```
+sudo rm -f /root/k3s-gce/bootstrapped
+sudo google_metadata_script_runner startup
+```
