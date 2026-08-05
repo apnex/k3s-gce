@@ -1,4 +1,4 @@
-# Example: the hermes kate substrate on your-project-id.
+# Example: a hermes kate substrate deployment.
 #
 # Instantiates the k3s-gce module with kate-flavored secret naming. All
 # deployment-specific, non-secret config lives in terraform.tfvars; secret

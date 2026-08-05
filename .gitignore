@@ -18,7 +18,6 @@
 # GCP service-account key files. Broad rule + anchored defense-in-depth so a
 # real key stays ignored even if *.json is ever narrowed.
 *.json
-/your-project-id.json
 /*-*.json
 **/*-sa.json
 **/sa-*.json
