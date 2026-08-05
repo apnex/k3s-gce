@@ -29,17 +29,23 @@ resource "google_service_account" "ssh_target" {
 
 # osAdminLogin = login + passwordless sudo (google-sudoers). The in-pod wrapper
 # normalises the non-root sa_<id> login to sudo for privilege.
-resource "google_project_iam_member" "ssh_target_oslogin" {
+#
+# Bound on THIS INSTANCE, not the project. A project-level binding would let
+# the ssh-target SA sudo-SSH into every VM in the project; the module only
+# needs it to reach the one it created.
+resource "google_compute_instance_iam_member" "ssh_target_oslogin" {
   count = var.enable_ssh_target_login ? 1 : 0
 
-  project = var.project_id
-  role    = "roles/compute.osAdminLogin"
-  member  = "serviceAccount:${google_service_account.ssh_target[0].email}"
+  project       = var.project_id
+  zone          = google_compute_instance.vm.zone
+  instance_name = google_compute_instance.vm.name
+  role          = "roles/compute.osAdminLogin"
+  member        = "serviceAccount:${google_service_account.ssh_target[0].email}"
 }
 
 # ORG-LEVEL PREREQUISITES (NOT manageable here — only an org admin can grant).
 # The ssh-target SA is out-of-domain (@gserviceaccount.com), so OS Login also
-# requires, AT THE ORG NODE:
+# requires, AT THE ORG NODE (beyond the instance-level osAdminLogin above):
 #   - roles/compute.osLoginExternalUser   (permits the external identity;
 #       cannot be bound at project level — the API returns HTTP 400)
 #   - roles/iam.serviceAccountUser        (actAs — to log in AS the SA)

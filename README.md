@@ -129,7 +129,9 @@ Subsequent applies need only `terraform apply`.
 
 ### org grant
 
-The `ssh-target` SA is out-of-domain, so OS Login treats it as external.\
+The module grants `compute.osAdminLogin` on the VM instance itself, not on the project, so the identity can only reach the VM this module created.
+
+The `ssh-target` SA is out-of-domain, so OS Login also treats it as external.\
 An org admin must grant it `compute.osLoginExternalUser` at the organization node - the role returns HTTP 400 if bound at project level.
 
 Grant it once per deployment:
