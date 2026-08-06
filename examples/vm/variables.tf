@@ -32,7 +32,7 @@ variable "env_secret_map" {
   default     = {}
 }
 
-variable "env_map" {
+variable "env_metadata_map" {
   description = "Environment variable name -> literal value, delivered via instance metadata. NON-SECRET config only: metadata is readable by any process on the VM. Use env_secret_map for anything sensitive."
   type        = map(string)
   default     = {}
@@ -45,7 +45,7 @@ variable "env_file_path" {
 }
 
 variable "enable_k3s_bootstrap" {
-  description = "On first boot, fetch k3s_bootstrap_url and run it. Leave true even for a dry run -- setting K3S_DRYRUN in env_map stops k3s/up before it changes the host, which tests the delivery chain without installing anything."
+  description = "On first boot, fetch k3s_bootstrap_url and run it. Leave true even for a dry run -- setting K3S_DRYRUN in env_metadata_map stops k3s/up before it changes the host, which tests the delivery chain without installing anything."
   type        = bool
   default     = true
 }

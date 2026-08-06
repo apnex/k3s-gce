@@ -31,11 +31,11 @@ locals {
   # longer exists. A per-deployment suffix means the two can never be confused.
   netbird_hostname = "${var.name_prefix}-${random_id.peer.hex}"
 
-  # NETBIRD_HOSTNAME is plain config, so it rides the same env_map the module
+  # NETBIRD_HOSTNAME is plain config, so it rides the same env_metadata_map the module
   # already delivers - no module input needed, since netbird/prepare reads it
   # from the environment. Merged as the BASE so an explicit value in
-  # var.env_map still wins.
-  env_map = var.enable_netbird ? merge({ NETBIRD_HOSTNAME = local.netbird_hostname }, var.env_map) : var.env_map
+  # var.env_metadata_map still wins.
+  env_metadata_map = var.enable_netbird ? merge({ NETBIRD_HOSTNAME = local.netbird_hostname }, var.env_metadata_map) : var.env_metadata_map
 }
 
 # Four hex characters, regenerated only when this deployment is destroyed and
@@ -63,10 +63,10 @@ module "k3s_gce" {
   zone        = var.zone
   name_prefix = var.name_prefix
 
-  subnetwork     = data.google_compute_subnetwork.target.id
-  env_secret_map = var.env_secret_map
-  env_map        = local.env_map
-  env_file_path  = var.env_file_path
+  subnetwork       = data.google_compute_subnetwork.target.id
+  env_secret_map   = var.env_secret_map
+  env_metadata_map = local.env_metadata_map
+  env_file_path    = var.env_file_path
 
   enable_k3s_bootstrap = var.enable_k3s_bootstrap
   k3s_bootstrap_url    = var.k3s_bootstrap_url

@@ -62,7 +62,7 @@ locals {
 	zone		= "australia-southeast1-a"	# the module derives its region from this
 	name_prefix	= "demo"
 	subnet_name	= "my-existing-subnet"
-	env_map		= {				# plain config, rides in metadata
+	env_metadata_map		= {				# plain config, rides in metadata
 		K3S_STORAGE	= "on"
 	}
 	env_secret_map	= {				# ENV var -> container that ALREADY exists
@@ -88,7 +88,7 @@ module "k3s-gce" {
 	project_id	= local.project_id
 	zone		= local.zone
 	name_prefix	= local.name_prefix
-	env_map		= local.env_map
+	env_metadata_map		= local.env_metadata_map
 	env_secret_map	= local.env_secret_map
 
 	subnetwork	= data.google_compute_subnetwork.target.id
@@ -182,7 +182,7 @@ sudo /usr/local/bin/kubectl get nodes,sc
 Use the full path.\
 `k3s/prepare` fixes root's `PATH` through `/etc/profile.d`, which applies to login shells only - `sudo kubectl` is not one.
 
-Set `K3S_DRYRUN` in `env_map` to exercise the whole delivery chain without installing anything.\
+Set `K3S_DRYRUN` in `env_metadata_map` to exercise the whole delivery chain without installing anything.\
 The bring-up entrypoint reads it after computing its plan and exits before running a single module.
 
 With `enable_netbird`, confirm the peer joined:
@@ -217,7 +217,7 @@ Everything else it touched - the subnet, the containers it read, the APIs - belo
 | `boot_disk_image` | Rocky 9 family | Image or family |
 | `boot_disk_size_gb` | `20` | Boot disk size |
 | `network_tags` | derived | Defaults to `["<name_prefix>-vm"]`; also an output |
-| `env_map` | `{}` | Plain config, `NAME = "value"` |
+| `env_metadata_map` | `{}` | Plain config, `NAME = "value"` |
 | `env_secret_map` | `{}` | Secrets, `NAME = "existing-container"` |
 | `env_file_path` | derived | Defaults to `/root/<name_prefix>.env` |
 | `root_ssh_key` | `null` | Public key for root; additive to OS Login |
@@ -245,7 +245,7 @@ Everything else it touched - the subnet, the containers it read, the APIs - belo
 
 Two maps, same destination, different transport.
 
-`env_map` is `NAME = "value"` and rides in instance metadata.\
+`env_metadata_map` is `NAME = "value"` and rides in instance metadata.\
 Metadata is readable by any process on the VM and by anyone holding `compute.instances.get`, so this is for config with nothing to hide - feature switches, tuning knobs, endpoints.
 
 `env_secret_map` is `NAME = "container-name"` and carries names only.\
@@ -346,7 +346,7 @@ ExecStart=/opt/k3s-gce/netbird.sh
 ```
 
 Its script then reads `NETBIRD_SETUP_KEY` straight from its own environment, with no shell and no human in the path.\
-Add an entry to `env_map` or `env_secret_map` and it appears there on the next boot.
+Add an entry to `env_metadata_map` or `env_secret_map` and it appears there on the next boot.
 
 `k3s-bootstrap` already consumes it this way, which is what puts config in front of the bring-up entrypoint.
 

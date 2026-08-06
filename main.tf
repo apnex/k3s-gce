@@ -44,5 +44,5 @@ locals {
   # newlines. env-secret-map can stay packed only because container names
   # cannot contain a comma or a colon. env.sh discovers these by filtering the
   # metadata attribute index for the prefix.
-  env_var_metadata = { for name, value in var.env_map : "env-var-${name}" => value }
+  env_var_metadata = { for name, value in var.env_metadata_map : "env-var-${name}" => value }
 }

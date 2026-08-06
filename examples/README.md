@@ -195,9 +195,9 @@ Confirm self-assembly reached a healthy cluster after an apply:
 
 ### smoke test without installing k3s
 
-Set `K3S_DRYRUN` to any non-empty value. It is plain config, not a secret, so it goes in `env_map` and needs nothing in Secret Manager:
+Set `K3S_DRYRUN` to any non-empty value. It is plain config, not a secret, so it goes in `env_metadata_map` and needs nothing in Secret Manager:
 ```
-env_map = { K3S_DRYRUN = "1" }
+env_metadata_map = { K3S_DRYRUN = "1" }
 ```
 
 `k3s/up` reads it after computing its plan and exits before running a single module, so nothing is installed - but the value had to cross the entire delivery chain to be read at all:
