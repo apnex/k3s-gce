@@ -1,7 +1,6 @@
 # k3s-gce examples
 
-Three roots, one duty each.
-
+Three roots, one duty each:
 ```
 examples/network/   VPC, subnet with Private Google Access, Cloud NAT, enabled APIs
 examples/secrets/   Secret Manager containers and their values
@@ -9,15 +8,16 @@ examples/vm/        the k3s-gce module on a subnet you already own
 env/<name>/         your real deployments, never committed
 ```
 
-They compose. Apply only the ones you need:
+They compose.
 
+Apply only the ones you need:
 ```
 empty project        network -> secrets -> vm
 existing network                secrets -> vm
 no secrets                                 vm
 ```
 
-**Status:** working - validated on a single deployment.
+**Status:** working - each root applied and destroyed repeatedly against a live project.
 
 The module's scope is the VM alone.\
 It builds no network and creates no Secret Manager container, so `network/` and `secrets/` supply what it expects to already exist. The routing pieces fail at **boot** rather than at apply, so read [`../README.md`](../README.md) before pointing `vm/` at a subnet of your own.
@@ -43,6 +43,8 @@ Order matters. Each root consumes what the one before it produced.
 ### 1. network - only on an empty project
 
 Skip this entirely if you already own a subnet.
+
+Copy it into `env/` and apply:
 ```
 cp -r examples/network env/network
 cd env/network
@@ -55,6 +57,7 @@ The `subnet_name` output is what `vm/` wants. The subnet has Private Google Acce
 
 ### 2. secrets - only if the VM needs any
 
+Copy it into `env/` and supply your values:
 ```
 cp -r examples/secrets env/secrets
 cd env/secrets
@@ -101,6 +104,7 @@ Rotating a value logs `assertion known after apply`. The new version number does
 
 ### 3. vm
 
+Copy it into `env/` and supply your values:
 ```
 cp -r examples/vm env/vm
 cd env/vm
@@ -198,7 +202,6 @@ env_map = { K3S_DRYRUN = "1" }
 ```
 
 `k3s/up` reads it after computing its plan and exits before running a single module, so nothing is installed - but the value had to cross the entire delivery chain to be read at all:
-
 ```
 Secret Manager -> env.sh -> /run/gce-env/env -> EnvironmentFile= -> k3s-bootstrap.service -> bootstrap.sh -> k3s/up
 ```

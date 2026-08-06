@@ -11,7 +11,7 @@ Scope is the VM. Stands up:
 - (optional) NetBird network join on first boot
 - (optional) k3s self-assembly on first boot
 
-**Status:** working - verified end to end by two live bootstraps on Rocky Linux 9.
+**Status:** working - verified end to end on Rocky Linux 9, k3s and NetBird both self-assembling on a first boot.
 
 The VPC, subnet, firewall rules, Cloud NAT and project API enablement are **not** in scope.\
 The module attaches to a subnetwork you already own.
