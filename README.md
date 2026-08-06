@@ -130,7 +130,15 @@ Bring-up continues on the VM for several minutes after that, bounded by `Timeout
 
 ## Use
 
-Connect over the IAP tunnel, then `sudo -i` for root:
+Set `root_ssh_key` and root is reachable by key over any route to port 22 - a VPN, a bastion, anything - with no gcloud in the path.\
+It is **additive**: `sshd` consults `AuthorizedKeysFile` before `AuthorizedKeysCommand`, so OS Login keeps working over IAP as the break-glass route for when that network is down. The key is declarative, so clearing the variable removes it on the next boot.
+
+`examples/vm` generates a keypair per deployment and ships `netbird-login.sh`, which reads both the key path and the peer FQDN from outputs:
+```
+./netbird-login.sh
+```
+
+Connect over the IAP tunnel instead, then `sudo -i` for root:
 ```
 gcloud compute ssh <name_prefix>-vm --zone=<zone> --project=<project_id> --tunnel-through-iap
 ```
@@ -214,6 +222,7 @@ Everything else it touched - the subnet, the containers it read, the APIs - belo
 | `env_map` | `{}` | Plain config, `NAME = "value"` |
 | `env_secret_map` | `{}` | Secrets, `NAME = "existing-container"` |
 | `env_file_path` | derived | Defaults to `/root/<name_prefix>.env` |
+| `root_ssh_key` | `null` | Public key for root; additive to OS Login |
 | `enable_k3s_bootstrap` | `true` | Run the k3s bring-up on first boot |
 | `k3s_bootstrap_url` | `https://labops.sh/k3s/up` | Entrypoint fetched over HTTPS |
 | `enable_netbird` | `false` | Join NetBird on first boot, before k3s |
@@ -281,6 +290,7 @@ A module installing something else keeps the first half and swaps the second.
 Provisioning is split into units, one duty each:
 
 - **`gce-env.service`** resolves config and secrets into the env file. Runs every boot, idempotent.
+- **`ssh-access.service`** installs the root `authorized_keys` and a sshd drop-in. Runs every boot, idempotent.
 - **`netbird-bootstrap.service`** joins the NetBird network. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/netbird.done`.
 - **`k3s-bootstrap.service`** self-assembles k3s. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/k3s.done`.
 
@@ -294,7 +304,7 @@ A duty unit is named `<duty>-bootstrap.service`, never `<duty>.service`.\
 An installer that registers a system service of its own would otherwise be shadowed by the very unit invoking it: `netbird service install` writes `/etc/systemd/system/netbird.service`, so a duty unit at that path makes the installer find itself, skip the real install, and deadlock starting the unit it is running inside.
 
 `guest/startup.sh` is the GCE startup-script and provisions nothing itself.\
-It materialises the two scripts and three units from metadata, then drives them.
+It materialises the three scripts and four units from metadata, then drives them.
 
 Materialising before starting is what keeps a rebooted VM on the current module version rather than on whatever the last boot left behind.
 

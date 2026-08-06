@@ -32,3 +32,16 @@ output "ssh_command" {
   description = "Connect via IAP tunnel (sudo -i for root once in)"
   value       = module.k3s_gce.ssh_command
 }
+
+# NetBird assigns the peer address at join time, long after apply, so Terraform
+# never sees it. The FQDN is derivable though - NetBird names the peer after the
+# hostname, which this module already sets - so login by name rather than IP.
+output "netbird_fqdn" {
+  description = "NetBird FQDN of the VM. Resolvable from any peer on the mesh."
+  value       = "${module.k3s_gce.vm_name}.${var.netbird_domain}"
+}
+
+output "root_key_file" {
+  description = "Path to the generated root private key, used by netbird-login.sh"
+  value       = local_sensitive_file.root_key.filename
+}

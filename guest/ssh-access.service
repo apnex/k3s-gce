@@ -1,0 +1,22 @@
+[Unit]
+Description=k3s-gce: install the root authorized_keys and permit key-only root login
+Documentation=https://github.com/apnex/k3s-gce
+After=network-online.target
+Wants=network-online.target
+
+# NOT named ssh.service or sshd.service. A duty unit must not collide with
+# anything it configures -- see netbird-bootstrap.service for what that costs.
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/k3s-gce/ssh.sh
+# Only metadata reads and a config reload, so a short bound is right. A wedged
+# metadata call must not hold up the duties behind it.
+TimeoutStartSec=120
+
+# No run-once guard, deliberately. The key is declarative: every boot installs
+# what metadata currently says, so rotating or revoking it is an apply plus a
+# reboot rather than a marker to clear by hand.
+
+# Deliberately no [Install] section -- see gce-env.service.

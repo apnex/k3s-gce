@@ -6,6 +6,14 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 6.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.0"
+    }
   }
 }
 
@@ -41,6 +49,26 @@ module "k3s_gce" {
 
   enable_netbird        = var.enable_netbird
   netbird_bootstrap_url = var.netbird_bootstrap_url
+
+  root_ssh_key = tls_private_key.root.public_key_openssh
+}
+
+# A fresh root key per deployment. The VM is disposable and so is its key: a
+# destroy/apply cycle rotates it, and nothing outlives the instance.
+#
+# The private half is written beside netbird-login.sh AND recorded in this
+# root's terraform.tfstate. State is already gitignored and local-only, the
+# same protection ~/.ssh has, so this is a second copy rather than a new
+# exposure - but it does mean a root credential travels with the state file if
+# this root ever moves to a remote backend.
+resource "tls_private_key" "root" {
+  algorithm = "ED25519"
+}
+
+resource "local_sensitive_file" "root_key" {
+  filename        = "${path.module}/netbird-id"
+  content         = tls_private_key.root.private_key_openssh
+  file_permission = "0600"
 }
 
 resource "google_compute_firewall" "allow_iap_ssh" {

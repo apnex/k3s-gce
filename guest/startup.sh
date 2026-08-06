@@ -5,6 +5,7 @@
 ## instance metadata, installs them, and hands off:
 ##
 ##   gce-env.service            metadata + Secret Manager -> VM env file
+##   ssh-access.service         root authorized_keys, every boot
 ##   netbird-bootstrap.service  join the NetBird network, once
 ##   k3s-bootstrap.service      self-assemble k3s, once
 ##
@@ -13,8 +14,10 @@
 ##
 ## Metadata inputs (instance/attributes):
 ##   env-script        contents of env.sh
+##   ssh-script        contents of ssh.sh
 ##   bootstrap-script  contents of bootstrap.sh, shared by every installer duty
 ##   env-unit          contents of gce-env.service
+##   ssh-unit          contents of ssh-access.service
 ##   netbird-unit      contents of netbird-bootstrap.service
 ##   k3s-unit          contents of k3s-bootstrap.service
 ##
@@ -52,8 +55,10 @@ echo "k3s-gce: installing guest assets"
 mkdir -p "$INSTALL_DIR"
 
 install_asset env-script       "$INSTALL_DIR/env.sh"                     0700
+install_asset ssh-script       "$INSTALL_DIR/ssh.sh"                     0700
 install_asset bootstrap-script "$INSTALL_DIR/bootstrap.sh"               0700
 install_asset env-unit         "$UNIT_DIR/gce-env.service"               0644
+install_asset ssh-unit         "$UNIT_DIR/ssh-access.service"            0644
 install_asset netbird-unit     "$UNIT_DIR/netbird-bootstrap.service"     0644
 install_asset k3s-unit         "$UNIT_DIR/k3s-bootstrap.service"         0644
 
@@ -63,6 +68,11 @@ systemctl daemon-reload
 # RemainAfterExit=yes and `start` would be a no-op once it has run.
 echo "k3s-gce: refreshing env"
 systemctl restart gce-env.service
+
+# Root key is declarative and cheap, so it refreshes every boot alongside env.
+# Restart rather than start: RemainAfterExit makes `start` a no-op once run.
+echo "k3s-gce: refreshing root ssh access"
+systemctl restart ssh-access.service
 
 # Each installer is guarded by ConditionPathExists in its unit; systemd reports
 # a guarded unit as skipped, not failed, once its marker exists. Started in

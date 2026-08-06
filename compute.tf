@@ -51,6 +51,11 @@ resource "google_compute_instance" "vm" {
     env-secret-map = local.env_secret_map_csv
     env-file       = local.env_file_path
 
+    # Root SSH access. A public key is not secret, so it rides here rather than
+    # in Secret Manager. Empty removes the key and the sshd drop-in, so
+    # clearing the variable revokes access instead of leaving it behind.
+    ssh-root-key = coalesce(var.root_ssh_key, "")
+
     # Installer duties. Each is <duty>-enable / <duty>-url / <duty>-requires,
     # read by one shared bootstrap.sh invoked with the duty name. The entrypoint
     # is fetched over HTTPS, not cloned, so there is no repo and no ref -- just
@@ -71,8 +76,10 @@ resource "google_compute_instance" "vm" {
     # bootstrap.sh, differing only in the duty name passed to it.
     startup-script   = file("${path.module}/guest/startup.sh")
     env-script       = file("${path.module}/guest/env.sh")
+    ssh-script       = file("${path.module}/guest/ssh.sh")
     bootstrap-script = file("${path.module}/guest/bootstrap.sh")
     env-unit         = file("${path.module}/guest/gce-env.service")
+    ssh-unit         = file("${path.module}/guest/ssh-access.service")
     netbird-unit     = file("${path.module}/guest/netbird-bootstrap.service")
     k3s-unit         = file("${path.module}/guest/k3s-bootstrap.service")
   })

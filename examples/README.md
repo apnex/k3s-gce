@@ -119,7 +119,10 @@ A VM applied against a container that does not exist fails at apply with a clear
 
 ## Use
 
-`login.sh` reads the `ssh_command` output from state and connects over the IAP tunnel.
+Two ways in. `login.sh` reads the `ssh_command` output and connects over the IAP tunnel, authenticating through OS Login.\
+`netbird-login.sh` connects as root over NetBird using the keypair this root generated, with no gcloud and no IAP - it needs only that your machine is on the same NetBird network.
+
+The private key is written to `netbird-id` beside the script, at `0600`, and is also recorded in this root's state. Both are gitignored; treat the directory accordingly.
 
 Open an interactive shell:
 ```
@@ -130,6 +133,7 @@ cd env/vm
 Run a single command instead:
 ```
 ./login.sh --command='sudo journalctl -u gce-env -u k3s-bootstrap -n 40'
+./netbird-login.sh journalctl -u gce-env -u netbird-bootstrap -n 40
 ```
 
 ---

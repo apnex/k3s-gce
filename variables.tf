@@ -123,6 +123,34 @@ variable "env_file_path" {
   default     = null
 }
 
+# ── root SSH access ─────────────────────────────────────────────────
+# Additive to OS Login rather than a replacement. sshd consults
+# AuthorizedKeysFile before AuthorizedKeysCommand, so a root key works over any
+# route to port 22 while OS Login keeps serving Google identities over IAP.
+# That matters: it leaves an IAM-governed break-glass path for when whatever
+# network you reach root over is down.
+#
+# The public key rides in instance metadata, which is the right place for it -
+# metadata is readable by anyone with compute.instances.get, and that is
+# precisely the exposure a public key is built to tolerate.
+variable "root_ssh_key" {
+  description = "Public key installed at /root/.ssh/authorized_keys, with a sshd drop-in setting PermitRootLogin prohibit-password (key only, never password). Additive to OS Login, which keeps working over IAP. Null or empty installs nothing and removes anything a previous apply left, so clearing it revokes access."
+  type        = string
+  default     = null
+
+  validation {
+    # A private key pasted here would be published in instance metadata for
+    # anyone with compute.instances.get to read. Catch it before that happens.
+    condition     = var.root_ssh_key == null || !can(regex("PRIVATE KEY", var.root_ssh_key))
+    error_message = "root_ssh_key looks like a PRIVATE key. This value is published in instance metadata and readable by anyone with compute.instances.get - pass the PUBLIC half."
+  }
+
+  validation {
+    condition     = var.root_ssh_key == null || can(regex("^(ssh-(rsa|ed25519)|ecdsa-sha2-)", trimspace(var.root_ssh_key)))
+    error_message = "root_ssh_key must be an OpenSSH public key, e.g. the contents of a .pub file starting ssh-ed25519."
+  }
+}
+
 # ── k3s self-assembly ───────────────────────────────────────────────
 variable "enable_k3s_bootstrap" {
   description = "On first boot, fetch k3s_bootstrap_url and run it to self-assemble the cluster. When false, the VM stands up bare and k3s is installed manually."
