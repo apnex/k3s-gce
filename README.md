@@ -11,8 +11,6 @@ Scope is the VM. Stands up:
 - (optional) NetBird network join on first boot
 - (optional) k3s self-assembly on first boot
 
-**Status:** working - verified end to end on Rocky Linux 9, k3s and NetBird both self-assembling on a first boot.
-
 The VPC, subnet, firewall rules, Cloud NAT and project API enablement are **not** in scope.\
 The module attaches to a subnetwork you already own.
 
@@ -133,7 +131,7 @@ Bring-up continues on the VM for several minutes after that, bounded by `Timeout
 Set `root_ssh_key` and root is reachable by key over any route to port 22 - a VPN, a bastion, anything - with no gcloud in the path.\
 It is **additive**: `sshd` consults `AuthorizedKeysFile` before `AuthorizedKeysCommand`, so OS Login keeps working over IAP as the break-glass route for when that network is down. The key is declarative, so clearing the variable removes it on the next boot.
 
-`examples/vm` generates a keypair per deployment and ships `netbird-login.sh`, which reads both the key path and the peer FQDN from outputs:
+`examples/vm` generates a keypair per deployment and ships `netbird-login.sh`, which reads the key path from an output and finds the peer by its per-deployment prefix:
 ```
 ./netbird-login.sh
 ```

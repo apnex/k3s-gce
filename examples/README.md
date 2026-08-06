@@ -17,8 +17,6 @@ existing network                secrets -> vm
 no secrets                                 vm
 ```
 
-**Status:** working - each root applied and destroyed repeatedly against a live project.
-
 The module's scope is the VM alone.\
 It builds no network and creates no Secret Manager container, so `network/` and `secrets/` supply what it expects to already exist. The routing pieces fail at **boot** rather than at apply, so read [`../README.md`](../README.md) before pointing `vm/` at a subnet of your own.
 
@@ -146,7 +144,8 @@ An ephemeral key has no such issue: a reboot is well inside the ten-minute windo
 
 `vm/` names the peer `<name_prefix>-<4 hex>`, from a `random_id` regenerated only on destroy.
 
-Ephemeral cleanup is not instant. Redeploy inside the ten-minute window and the new peer meets the corpse of the old one, and NetBird disambiguates by suffixing its own name - at which point the FQDN this root predicts resolves to a peer that no longer exists. The suffix means the two names can never collide in the first place.
+Ephemeral cleanup is not instant.\
+Redeploy inside the ten-minute window and the new peer meets the corpse of the old one, still registered under the same name. The per-deployment suffix means the two can never be confused, whatever NetBird then does with the rest of the name.
 
 It is stable across applies, so re-applying does not rename the peer and force it to re-register.
 
