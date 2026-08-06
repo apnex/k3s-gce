@@ -54,6 +54,72 @@ PGA is redundant while NAT is present, but it keeps secret injection working if 
 Wire one `google` provider, look up the subnet you own, and pass it in.\
 `examples/vm` is this as a runnable root, and [`examples/README.md`](examples/README.md) walks the full journey including the network and secret prerequisites.
 
+### secrets first
+
+The module never creates a Secret Manager container, so every name in `env_secret_map` has to exist before the VM is applied. Create them in a **separate root** - one writer per key, and the VM deployment stays a reader with nothing sensitive in its state.
+
+Write `secrets.tf` there:
+```
+terraform {
+	required_version = ">= 1.11"	# write-only arguments
+}
+
+variable "secrets" {			# supply via a gitignored *.auto.tfvars
+	type		= map(string)	# container name -> value
+	sensitive	= true
+}
+
+variable "secrets_salt" {		# any stable string, kept beside the values
+	type		= string
+	sensitive	= true
+}
+
+locals {
+	# for_each keys cannot derive from a sensitive value; only the values are
+	names = toset(nonsensitive(keys(var.secrets)))
+}
+
+resource "google_secret_manager_secret" "this" {
+	for_each	= local.names
+	secret_id	= each.value
+
+	replication {
+		auto {}
+	}
+}
+
+resource "google_secret_manager_secret_version" "this" {
+	for_each	= local.names
+	secret		= google_secret_manager_secret.this[each.key].id
+
+	# write-only: sent to the API, never recorded as an attribute, so it
+	# cannot reach state
+	secret_data_wo		= var.secrets[each.key]
+
+	# a write-only value cannot be diffed, so editing one would otherwise
+	# report "No changes". The version is a salted hash of the value, per
+	# key, so an edit rewrites exactly the container that changed. Salted
+	# because the hash DOES land in state, and an unsalted one would let
+	# anyone holding that file test a guessed value against it.
+	secret_data_wo_version	= parseint(substr(sha256("${var.secrets_salt}:${var.secrets[each.key]}"), 0, 15), 16)
+
+	# a version change is a replacement and deletion_policy defaults to
+	# DELETE, so create the new one before destroying the old - otherwise a
+	# VM booting mid-rotation reads nothing
+	lifecycle {
+		create_before_destroy = true
+	}
+}
+```
+
+The container name you write here is exactly the string the VM puts on the right-hand side of its `env_secret_map`. Nothing is derived, so nothing has to be reconstructed at the other end.
+
+`examples/secrets` is this as a runnable root, and adds a `check` block that warns when something writes a container behind Terraform's back.
+
+`gcloud secrets create` works just as well. What matters is that the container exists, and that its writer is somewhere other than the VM deployment.
+
+### the VM
+
 Write `main.tf`:
 ```
 locals {
@@ -62,10 +128,10 @@ locals {
 	zone		= "australia-southeast1-a"	# the module derives its region from this
 	name_prefix	= "demo"
 	subnet_name	= "my-existing-subnet"
-	env_metadata_map		= {				# plain config, rides in metadata
+	env_metadata_map = {				# plain config, rides in metadata
 		K3S_STORAGE	= "on"
 	}
-	env_secret_map	= {				# ENV var -> container that ALREADY exists
+	env_secret_map	 = {				# ENV var -> container that ALREADY exists
 		APP_TOKEN	= "demo-app-token"
 		LLM_API_KEY	= "shared-llm-api-key"
 	}
