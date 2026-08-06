@@ -55,3 +55,15 @@ variable "k3s_bootstrap_url" {
   type        = string
   default     = "https://labops.sh/k3s/up"
 }
+
+variable "enable_netbird" {
+  description = "On first boot, join the NetBird network. Requires NETBIRD_SETUP_KEY in env_secret_map. Runs before the k3s bring-up."
+  type        = bool
+  default     = false
+}
+
+variable "netbird_bootstrap_url" {
+  description = "URL of the NetBird bring-up entrypoint, fetched over HTTPS on first boot."
+  type        = string
+  default     = "https://labops.sh/netbird/up"
+}

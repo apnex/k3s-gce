@@ -38,6 +38,9 @@ module "k3s_gce" {
 
   enable_k3s_bootstrap = var.enable_k3s_bootstrap
   k3s_bootstrap_url    = var.k3s_bootstrap_url
+
+  enable_netbird        = var.enable_netbird
+  netbird_bootstrap_url = var.netbird_bootstrap_url
 }
 
 resource "google_compute_firewall" "allow_iap_ssh" {

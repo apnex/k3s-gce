@@ -141,7 +141,7 @@ env_map = { K3S_DRYRUN = "1" }
 `k3s/up` reads it after computing its plan and exits before running a single module, so nothing is installed - but the value had to cross the entire delivery chain to be read at all:
 
 ```
-Secret Manager -> env.sh -> /run/gce-env/env -> EnvironmentFile= -> k3s-bootstrap.service -> k3s.sh -> k3s/up
+Secret Manager -> env.sh -> /run/gce-env/env -> EnvironmentFile= -> k3s-bootstrap.service -> bootstrap.sh -> k3s/up
 ```
 
 Confirm the chain end to end:
@@ -154,7 +154,7 @@ Look for `+ K3S_DRYRUN: written` from `gce-env`, then `[ K3S/UP ] dry-run - exit
 A dry run exits 0, so the run-once marker is written and later boots skip the unit.\
 Clear it when you want the real install:
 ```
-./login.sh --command='sudo rm -f /root/k3s-gce/bootstrapped && sudo systemctl start k3s-bootstrap'
+./login.sh --command='sudo rm -f /root/k3s-gce/k3s.done && sudo systemctl start k3s-bootstrap'
 ```
 
 `K3S_DRYRUN` is a test lever, not a brake.\

@@ -8,6 +8,7 @@ Scope is the VM. Stands up:
 
 - least-privilege Rocky VM with OS Login, no public IP - image follows `boot_disk_image`
 - config and existing Secret Manager values read into an env file on boot
+- (optional) NetBird network join on first boot
 - (optional) k3s self-assembly on first boot
 
 **Status:** working - verified end to end by two live bootstraps on Rocky Linux 9.
@@ -146,9 +147,9 @@ Read the logs, which go to the journal and rotate there:
 journalctl -u gce-env -u k3s-bootstrap
 ```
 
-Force a re-bootstrap by clearing the marker the unit condition reads:
+Force a duty to re-run by clearing the marker its unit condition reads:
 ```
-sudo rm -f /root/k3s-gce/bootstrapped
+sudo rm -f /root/k3s-gce/k3s.done
 sudo systemctl start k3s-bootstrap
 ```
 
@@ -177,6 +178,12 @@ Use the full path.\
 
 Set `K3S_DRYRUN` in `env_map` to exercise the whole delivery chain without installing anything.\
 The bring-up entrypoint reads it after computing its plan and exits before running a single module.
+
+With `enable_netbird`, confirm the peer joined:
+```
+sudo journalctl -u netbird --no-pager
+sudo /usr/local/bin/netbird status
+```
 
 ---
 
@@ -207,8 +214,10 @@ Everything else it touched - the subnet, the containers it read, the APIs - belo
 | `env_map` | `{}` | Plain config, `NAME = "value"` |
 | `env_secret_map` | `{}` | Secrets, `NAME = "existing-container"` |
 | `env_file_path` | derived | Defaults to `/root/<name_prefix>.env` |
-| `enable_k3s_bootstrap` | `true` | Run the bring-up on first boot |
+| `enable_k3s_bootstrap` | `true` | Run the k3s bring-up on first boot |
 | `k3s_bootstrap_url` | `https://labops.sh/k3s/up` | Entrypoint fetched over HTTPS |
+| `enable_netbird` | `false` | Join NetBird on first boot, before k3s |
+| `netbird_bootstrap_url` | `https://labops.sh/netbird/up` | Entrypoint fetched over HTTPS |
 
 ---
 
@@ -246,6 +255,14 @@ Two keys may point at one container; the read grant is deduplicated.
 Containers are created elsewhere - a separate Terraform root (see `examples/secrets`) or `gcloud secrets create`.\
 Keeping the writer out of this module is what stops secret values reaching the plan file or state.
 
+`enable_netbird` consumes its setup key this way rather than through an input of its own:
+```
+env_secret_map = { NETBIRD_SETUP_KEY = "netbird-setup-key" }
+enable_netbird = true
+```
+
+The module validates that pairing at plan time, so a missing key is an error before the VM exists rather than a failed unit after it.
+
 ---
 
 ## Guest assets
@@ -261,13 +278,19 @@ Keys are named `<duty>-<thing>`, and the two duties are named for what they are:
 The reusable piece is the pattern - `guest/` assets delivered by metadata, one systemd unit per duty, and the env contract below - not the k3s script itself.\
 A module installing something else keeps the first half and swaps the second.
 
-Provisioning is split into two units, one duty each:
+Provisioning is split into units, one duty each:
 
 - **`gce-env.service`** resolves config and secrets into the env file. Runs every boot, idempotent.
-- **`k3s-bootstrap.service`** self-assembles k3s. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/bootstrapped`.
+- **`netbird.service`** joins the NetBird network. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/netbird.done`.
+- **`k3s-bootstrap.service`** self-assembles k3s. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/k3s.done`.
+
+The two installers run the **same** `bootstrap.sh`, differing only in the duty name passed to it.\
+A duty is `<name>-enable`, `<name>-url` and `<name>-requires` in metadata, plus a marker at `/root/k3s-gce/<name>.done`. Adding a third installs nothing new on the guest.
+
+`netbird` is ordered ahead of `k3s`, so the cluster comes up on a host already on the network.
 
 `guest/startup.sh` is the GCE startup-script and provisions nothing itself.\
-It materialises the two scripts and two units from metadata, then drives them.
+It materialises the two scripts and three units from metadata, then drives them.
 
 Materialising before starting is what keeps a rebooted VM on the current module version rather than on whatever the last boot left behind.
 

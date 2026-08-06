@@ -148,3 +148,35 @@ variable "k3s_bootstrap_url" {
     error_message = "k3s_bootstrap_url must be https:// -- the entrypoint is executed as root on first boot."
   }
 }
+
+# ── netbird ─────────────────────────────────────────────────────────
+# A second installer duty, driven by the same bootstrap.sh as k3s and ordered
+# ahead of it, so the cluster comes up on a host already on the network.
+#
+# The setup key is not an input here. It arrives the way every other secret
+# does - as an env_secret_map entry naming a Secret Manager container - which
+# keeps the module a pure reader and keeps the key out of state and out of the
+# plan file. The guest reads NETBIRD_SETUP_KEY from /run/gce-env/env.
+variable "enable_netbird" {
+  description = "On first boot, fetch netbird_bootstrap_url and run it to join the NetBird network. Requires NETBIRD_SETUP_KEY in env_secret_map. Runs before the k3s bring-up."
+  type        = bool
+  default     = false
+
+  validation {
+    # The installer cannot join without a key, and finding that out from a
+    # failed unit on the VM is worse than finding it out at plan time.
+    condition     = !var.enable_netbird || contains(keys(var.env_secret_map), "NETBIRD_SETUP_KEY")
+    error_message = "enable_netbird requires NETBIRD_SETUP_KEY in env_secret_map, e.g. { NETBIRD_SETUP_KEY = \"netbird-setup-key\" }."
+  }
+}
+
+variable "netbird_bootstrap_url" {
+  description = "URL of the NetBird bring-up entrypoint, fetched over HTTPS on first boot and executed (used when enable_netbird = true). Same contract as k3s_bootstrap_url: downloaded to disk before running, and no ref to pin."
+  type        = string
+  default     = "https://labops.sh/netbird/up"
+
+  validation {
+    condition     = can(regex("^https://", var.netbird_bootstrap_url))
+    error_message = "netbird_bootstrap_url must be https:// -- the entrypoint is executed as root on first boot."
+  }
+}

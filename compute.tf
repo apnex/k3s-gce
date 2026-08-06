@@ -51,20 +51,30 @@ resource "google_compute_instance" "vm" {
     env-secret-map = local.env_secret_map_csv
     env-file       = local.env_file_path
 
-    # k3s self-assembly. The entrypoint is fetched over HTTPS, not cloned, so
-    # there is no repo and no ref -- just the URL that names what runs.
-    k3s-bootstrap = var.enable_k3s_bootstrap ? "on" : "off"
-    k3s-url       = var.k3s_bootstrap_url
+    # Installer duties. Each is <duty>-enable / <duty>-url / <duty>-requires,
+    # read by one shared bootstrap.sh invoked with the duty name. The entrypoint
+    # is fetched over HTTPS, not cloned, so there is no repo and no ref -- just
+    # the URL that names what runs. `requires` lists commands the entrypoint
+    # needs that a stock image may lack, installed on demand.
+    k3s-enable   = var.enable_k3s_bootstrap ? "on" : "off"
+    k3s-url      = var.k3s_bootstrap_url
+    k3s-requires = "jq"
 
-    # Guest assets. startup-script installs the other four and drives the two
-    # units; it performs no provisioning itself. One duty per unit:
-    # gce-env resolves config and secrets into the env file, k3s-bootstrap
-    # self-assembles k3s once.
-    startup-script = file("${path.module}/guest/startup.sh")
-    env-script     = file("${path.module}/guest/env.sh")
-    k3s-script     = file("${path.module}/guest/k3s.sh")
-    env-unit       = file("${path.module}/guest/gce-env.service")
-    k3s-unit       = file("${path.module}/guest/k3s-bootstrap.service")
+    netbird-enable   = var.enable_netbird ? "on" : "off"
+    netbird-url      = var.netbird_bootstrap_url
+    netbird-requires = "tar"
+
+    # Guest assets. startup-script installs the other four and drives the three
+    # units; it performs no provisioning itself. One duty per unit: gce-env
+    # resolves config and secrets into the env file, netbird joins the network
+    # once, k3s-bootstrap self-assembles k3s once. Both installers run the same
+    # bootstrap.sh, differing only in the duty name passed to it.
+    startup-script   = file("${path.module}/guest/startup.sh")
+    env-script       = file("${path.module}/guest/env.sh")
+    bootstrap-script = file("${path.module}/guest/bootstrap.sh")
+    env-unit         = file("${path.module}/guest/gce-env.service")
+    netbird-unit     = file("${path.module}/guest/netbird.service")
+    k3s-unit         = file("${path.module}/guest/k3s-bootstrap.service")
   })
 
   labels = {

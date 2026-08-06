@@ -1,0 +1,22 @@
+[Unit]
+Description=k3s-gce: join the NetBird network on first boot
+Documentation=https://github.com/apnex/k3s-gce
+After=network-online.target gce-env.service
+Wants=network-online.target
+# Run-once guard. systemd skips the unit entirely once the marker exists.
+ConditionPathExists=!/root/k3s-gce/netbird.done
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# NETBIRD_SETUP_KEY reaches the installer here, straight from Secret Manager via
+# gce-env. Without this the entrypoint runs as a non-login shell, so
+# /etc/profile.d never applies and it sees nothing. Leading "-" tolerates the
+# file being absent when no config is set.
+EnvironmentFile=-/run/gce-env/env
+ExecStart=/opt/k3s-gce/bootstrap.sh netbird
+# Shorter than the k3s bound: this fetches one static binary and registers a
+# peer, rather than installing a cluster.
+TimeoutStartSec=600
+
+# Deliberately no [Install] section -- see gce-env.service.

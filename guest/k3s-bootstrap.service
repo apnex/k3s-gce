@@ -1,20 +1,23 @@
 [Unit]
 Description=k3s-gce: self-assemble k3s on first boot
 Documentation=https://github.com/apnex/k3s-gce
-After=network-online.target gce-env.service
+# netbird.service is ordered ahead so the cluster comes up on a host already
+# reachable over the network. After= only orders units that actually run, so
+# this costs nothing when netbird is disabled.
+After=network-online.target gce-env.service netbird.service
 Wants=network-online.target
 # Run-once guard. systemd skips the unit entirely once the marker exists, which
 # replaces the marker check the monolithic script did by hand.
-ConditionPathExists=!/root/k3s-gce/bootstrapped
+ConditionPathExists=!/root/k3s-gce/k3s.done
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# Secrets reach the bring-up here. Without this the entrypoint runs as a
-# non-login shell, so /etc/profile.d never applies and it sees none of them.
-# Leading "-" tolerates the file being absent when no secrets are configured.
+# Config and secrets reach the bring-up here. Without this the entrypoint runs
+# as a non-login shell, so /etc/profile.d never applies and it sees none of
+# them. Leading "-" tolerates the file being absent when nothing is configured.
 EnvironmentFile=-/run/gce-env/env
-ExecStart=/opt/k3s-gce/k3s.sh
+ExecStart=/opt/k3s-gce/bootstrap.sh k3s
 # A hung bring-up previously held the flock indefinitely and blocked every
 # later run. systemd kills it instead, and the marker stays unwritten so the
 # next boot retries.
