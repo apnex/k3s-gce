@@ -51,11 +51,10 @@ resource "google_compute_instance" "vm" {
     env-secret-map = local.env_secret_map_csv
     env-file       = local.env_file_path
 
-    # k3s self-assembly
-    k3s-bootstrap     = var.enable_k3s_bootstrap ? "on" : "off"
-    k3s-repo          = var.k3s_repo_url
-    k3s-ref           = var.k3s_repo_ref
-    k3s-up-entrypoint = var.k3s_up_entrypoint
+    # k3s self-assembly. The entrypoint is fetched over HTTPS, not cloned, so
+    # there is no repo and no ref -- just the URL that names what runs.
+    k3s-bootstrap = var.enable_k3s_bootstrap ? "on" : "off"
+    k3s-url       = var.k3s_bootstrap_url
 
     # Guest assets. startup-script installs the other four and drives the two
     # units; it performs no provisioning itself. One duty per unit:

@@ -37,8 +37,7 @@ module "k3s_gce" {
   env_file_path  = var.env_file_path
 
   enable_k3s_bootstrap = var.enable_k3s_bootstrap
-  k3s_repo_url         = var.k3s_repo_url
-  k3s_repo_ref         = var.k3s_repo_ref
+  k3s_bootstrap_url    = var.k3s_bootstrap_url
 }
 
 resource "google_compute_firewall" "allow_iap_ssh" {

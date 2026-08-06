@@ -50,7 +50,7 @@ variable "boot_disk_size_gb" {
 # attaches to a subnetwork you already own. See README for what that
 # subnetwork must provide.
 variable "subnetwork" {
-  description = "Self link or ID of an existing subnetwork to attach the VM to. Must be in the region derived from var.zone. The VM has no public IP, so the subnet must give it a route to secretmanager.googleapis.com -- either Private Google Access or Cloud NAT satisfies that. General internet egress (Cloud NAT or equivalent) is additionally required when enable_k3s_bootstrap is true, since the bring-up repo and k3s installer are not Google APIs."
+  description = "Self link or ID of an existing subnetwork to attach the VM to. Must be in the region derived from var.zone. The VM has no public IP, so the subnet must give it a route to secretmanager.googleapis.com -- either Private Google Access or Cloud NAT satisfies that. General internet egress (Cloud NAT or equivalent) is additionally required when enable_k3s_bootstrap is true, since the bring-up entrypoint and the k3s installer are not Google APIs."
   type        = string
 }
 
@@ -125,25 +125,26 @@ variable "env_file_path" {
 
 # ── k3s self-assembly ───────────────────────────────────────────────
 variable "enable_k3s_bootstrap" {
-  description = "On first boot, clone the k3s bring-up repo and run its entrypoint to self-assemble the cluster. When false, the VM stands up bare and k3s is installed manually."
+  description = "On first boot, fetch k3s_bootstrap_url and run it to self-assemble the cluster. When false, the VM stands up bare and k3s is installed manually."
   type        = bool
   default     = true
 }
 
-variable "k3s_repo_url" {
-  description = "Git repo cloned on first boot to bring up k3s (used when enable_k3s_bootstrap = true)."
+# One URL, fetched over HTTPS. No git, and nothing to pin.
+#
+# A clone needed git installed first -- absent from a stock Rocky image, and
+# roughly a third of the bring-up wall time to put there. curl is already in the
+# base image, so the entrypoint is one GET.
+#
+# There is no ref. Whatever the URL serves at boot is what the node gets, which
+# is the same contract every other boot-time fetch here already has.
+variable "k3s_bootstrap_url" {
+  description = "URL of the bring-up entrypoint script, fetched over HTTPS on first boot and executed (used when enable_k3s_bootstrap = true). Downloaded to disk before running, so a truncated transfer cannot half-execute. There is no ref to pin: the URL names what runs. An entrypoint that resolves further modules of its own does so over the same transport."
   type        = string
-  default     = "https://github.com/apnex/labops.git"
-}
+  default     = "https://labops.sh/k3s/up"
 
-variable "k3s_repo_ref" {
-  description = "Git ref (branch/tag) of k3s_repo_url to clone."
-  type        = string
-  default     = "master"
-}
-
-variable "k3s_up_entrypoint" {
-  description = "Path within the cloned repo to the k3s bring-up entrypoint script."
-  type        = string
-  default     = "k3s/up"
+  validation {
+    condition     = can(regex("^https://", var.k3s_bootstrap_url))
+    error_message = "k3s_bootstrap_url must be https:// -- the entrypoint is executed as root on first boot."
+  }
 }

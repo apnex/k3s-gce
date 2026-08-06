@@ -133,12 +133,9 @@ Confirm self-assembly reached a healthy cluster after an apply:
 
 ### smoke test without installing k3s
 
-Create a `K3S_DRYRUN` container holding any non-empty value, and map it:
+Set `K3S_DRYRUN` to any non-empty value. It is plain config, not a secret, so it goes in `env_map` and needs nothing in Secret Manager:
 ```
-printf 1 | gcloud secrets create k3s-dryrun --data-file=-
-```
-```
-env_secret_map = { K3S_DRYRUN = "k3s-dryrun" }
+env_map = { K3S_DRYRUN = "1" }
 ```
 
 `k3s/up` reads it after computing its plan and exits before running a single module, so nothing is installed - but the value had to cross the entire delivery chain to be read at all:
@@ -161,7 +158,7 @@ Clear it when you want the real install:
 ```
 
 `K3S_DRYRUN` is a test lever, not a brake.\
-`k3s-bootstrap.service` is ordered `After=gce-env.service` but does not `Require=` it, and its `EnvironmentFile=` carries the leading `-` that tolerates a missing file - so if secret injection fails, the variable is simply absent and the real install proceeds.
+`k3s-bootstrap.service` is ordered `After=gce-env.service` but does not `Require=` it, and its `EnvironmentFile=` carries the leading `-` that tolerates a missing file - so if env injection fails, the variable is simply absent and the real install proceeds.
 
 ---
 

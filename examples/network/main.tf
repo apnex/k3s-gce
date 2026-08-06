@@ -60,9 +60,9 @@ resource "google_compute_subnetwork" "subnet" {
 }
 
 # Outbound internet egress. The VM has no public IP, so this is its only route
-# out, and it is REQUIRED when enable_k3s_bootstrap is true: first boot clones
-# the bring-up repo and downloads the k3s installer, neither of which is a
-# Google API. Inbound stays closed.
+# out, and it is REQUIRED when enable_k3s_bootstrap is true: first boot fetches
+# the bring-up entrypoint and downloads the k3s installer, neither of which is
+# a Google API. Inbound stays closed.
 resource "google_compute_router" "router" {
   name    = "${var.name_prefix}-router"
   region  = var.region

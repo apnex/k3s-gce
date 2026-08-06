@@ -45,19 +45,13 @@ variable "env_file_path" {
 }
 
 variable "enable_k3s_bootstrap" {
-  description = "On first boot, clone the bring-up repo and run its entrypoint. Leave true even for a dry run -- K3S_DRYRUN stops k3s/up before it changes the host, which tests the delivery chain without installing anything."
+  description = "On first boot, fetch k3s_bootstrap_url and run it. Leave true even for a dry run -- setting K3S_DRYRUN in env_map stops k3s/up before it changes the host, which tests the delivery chain without installing anything."
   type        = bool
   default     = true
 }
 
-variable "k3s_repo_url" {
-  description = "Git repo cloned on first boot to bring up k3s."
+variable "k3s_bootstrap_url" {
+  description = "URL of the bring-up entrypoint, fetched over HTTPS on first boot and executed. No git, no ref -- the URL names what runs."
   type        = string
-  default     = "https://github.com/apnex/labops.git"
-}
-
-variable "k3s_repo_ref" {
-  description = "Git ref (branch, tag, or commit SHA) of k3s_repo_url to clone."
-  type        = string
-  default     = "master"
+  default     = "https://labops.sh/k3s/up"
 }
