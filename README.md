@@ -181,7 +181,7 @@ The bring-up entrypoint reads it after computing its plan and exits before runni
 
 With `enable_netbird`, confirm the peer joined:
 ```
-sudo journalctl -u netbird --no-pager
+sudo journalctl -u netbird-bootstrap --no-pager
 sudo /usr/local/bin/netbird status
 ```
 
@@ -281,13 +281,17 @@ A module installing something else keeps the first half and swaps the second.
 Provisioning is split into units, one duty each:
 
 - **`gce-env.service`** resolves config and secrets into the env file. Runs every boot, idempotent.
-- **`netbird.service`** joins the NetBird network. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/netbird.done`.
+- **`netbird-bootstrap.service`** joins the NetBird network. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/netbird.done`.
 - **`k3s-bootstrap.service`** self-assembles k3s. Runs once, guarded by `ConditionPathExists=!/root/k3s-gce/k3s.done`.
 
 The two installers run the **same** `bootstrap.sh`, differing only in the duty name passed to it.\
 A duty is `<name>-enable`, `<name>-url` and `<name>-requires` in metadata, plus a marker at `/root/k3s-gce/<name>.done`. Adding a third installs nothing new on the guest.
 
-`netbird` is ordered ahead of `k3s`, so the cluster comes up on a host already on the network.
+`netbird` is ordered ahead of `k3s`, so the cluster comes up on a host already on the network.\
+A failing duty does not take the others with it - `startup.sh` runs each in turn and reports at the end, so one broken installer cannot leave the rest unrun.
+
+A duty unit is named `<duty>-bootstrap.service`, never `<duty>.service`.\
+An installer that registers a system service of its own would otherwise be shadowed by the very unit invoking it: `netbird service install` writes `/etc/systemd/system/netbird.service`, so a duty unit at that path makes the installer find itself, skip the real install, and deadlock starting the unit it is running inside.
 
 `guest/startup.sh` is the GCE startup-script and provisions nothing itself.\
 It materialises the two scripts and three units from metadata, then drives them.

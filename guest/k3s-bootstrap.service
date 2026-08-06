@@ -1,10 +1,10 @@
 [Unit]
 Description=k3s-gce: self-assemble k3s on first boot
 Documentation=https://github.com/apnex/k3s-gce
-# netbird.service is ordered ahead so the cluster comes up on a host already
+# netbird-bootstrap is ordered ahead so the cluster comes up on a host already
 # reachable over the network. After= only orders units that actually run, so
 # this costs nothing when netbird is disabled.
-After=network-online.target gce-env.service netbird.service
+After=network-online.target gce-env.service netbird-bootstrap.service
 Wants=network-online.target
 # Run-once guard. systemd skips the unit entirely once the marker exists, which
 # replaces the marker check the monolithic script did by hand.

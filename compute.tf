@@ -73,7 +73,7 @@ resource "google_compute_instance" "vm" {
     env-script       = file("${path.module}/guest/env.sh")
     bootstrap-script = file("${path.module}/guest/bootstrap.sh")
     env-unit         = file("${path.module}/guest/gce-env.service")
-    netbird-unit     = file("${path.module}/guest/netbird.service")
+    netbird-unit     = file("${path.module}/guest/netbird-bootstrap.service")
     k3s-unit         = file("${path.module}/guest/k3s-bootstrap.service")
   })
 

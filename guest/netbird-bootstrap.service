@@ -6,6 +6,13 @@ Wants=network-online.target
 # Run-once guard. systemd skips the unit entirely once the marker exists.
 ConditionPathExists=!/root/k3s-gce/netbird.done
 
+# NOT named netbird.service. `netbird service install` creates a unit at that
+# exact path, so a duty unit named after its own payload shadows the daemon it
+# is trying to register -- the installer then finds THIS unit, reports the
+# service already present, skips the real install, and deadlocks trying to
+# start the unit it is currently running inside. A duty unit must not collide
+# with anything its entrypoint installs.
+
 [Service]
 Type=oneshot
 RemainAfterExit=yes
