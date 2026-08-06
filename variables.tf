@@ -89,6 +89,34 @@ variable "env_secret_map" {
   }
 }
 
+# Plain, non-secret environment for the guest. Rides in instance metadata as
+# one key per variable, and lands in the same env files as the secrets.
+#
+# Instance metadata is readable by any process on the VM and by anyone holding
+# compute.instances.get, so this is for config with nothing to hide -- feature
+# switches, tuning knobs, endpoints. Anything worth protecting belongs in
+# env_secret_map, which carries names and leaves the values in Secret Manager.
+#
+# Without this the only channel to the guest was a Secret Manager container,
+# which meant inventing a container to pass a boolean.
+variable "env_map" {
+  description = "Environment variable name → literal value, delivered via instance metadata. For NON-SECRET config only: metadata is readable by any process on the VM and by anyone with compute.instances.get. Use env_secret_map for anything sensitive. Values may contain any bytes, including newlines - each variable gets its own metadata key, so there is no delimiter to collide with."
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition     = alltrue([for k in keys(var.env_map) : can(regex("^[A-Za-z_][A-Za-z0-9_]*$", k))])
+    error_message = "env_map keys become shell variable names, so each must match ^[A-Za-z_][A-Za-z0-9_]*$."
+  }
+
+  validation {
+    # Both maps write the same env files. An overlap is always a mistake, and
+    # catching it here beats a value silently winning on the VM.
+    condition     = length(setintersection(keys(var.env_map), keys(var.env_secret_map))) == 0
+    error_message = "A name cannot appear in both env_map and env_secret_map. Move it to one or the other."
+  }
+}
+
 variable "env_file_path" {
   description = "Absolute path the startup script writes the sourced env file to. Auto-sourced for root login shells via /etc/profile.d. Defaults to /root/<name_prefix>.env when null."
   type        = string

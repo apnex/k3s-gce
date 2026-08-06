@@ -38,4 +38,11 @@ locals {
   # container; without the dedupe that would be two IAM bindings on one secret,
   # which is a duplicate-resource error rather than a merge.
   secret_containers = toset(values(var.env_secret_map))
+
+  # One metadata key per plain variable, not a packed list. A packed form needs
+  # a delimiter and a plain value may contain any byte -- commas, quotes,
+  # newlines. env-secret-map can stay packed only because container names
+  # cannot contain a comma or a colon. env.sh discovers these by filtering the
+  # metadata attribute index for the prefix.
+  env_var_metadata = { for name, value in var.env_map : "env-var-${name}" => value }
 }

@@ -33,6 +33,7 @@ module "k3s_gce" {
 
   subnetwork     = data.google_compute_subnetwork.target.id
   env_secret_map = var.env_secret_map
+  env_map        = var.env_map
   env_file_path  = var.env_file_path
 
   enable_k3s_bootstrap = var.enable_k3s_bootstrap

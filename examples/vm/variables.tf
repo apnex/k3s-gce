@@ -32,6 +32,12 @@ variable "env_secret_map" {
   default     = {}
 }
 
+variable "env_map" {
+  description = "Environment variable name -> literal value, delivered via instance metadata. NON-SECRET config only: metadata is readable by any process on the VM. Use env_secret_map for anything sensitive."
+  type        = map(string)
+  default     = {}
+}
+
 variable "env_file_path" {
   description = "Absolute path the guest writes the sourced env file to. Null defaults to /root/<name_prefix>.env."
   type        = string
