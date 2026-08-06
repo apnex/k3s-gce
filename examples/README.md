@@ -71,9 +71,31 @@ secrets = { "shared-llm-api-key" = "sk-..." }
 
 That string is what a VM puts on the right-hand side of its `env_secret_map`. Nothing is derived, so nothing has to be reconstructed.
 
-Values use `secret_data_wo`, a write-only argument. Terraform sends it to the API and never records it as a resource attribute, so it stays out of **state** - the long-lived artifact. Write-only values cannot be diffed, so bump `secrets_version` to write a new version of every container.
+Values use `secret_data_wo`, a write-only argument. Terraform sends it to the API and never records it as a resource attribute, so it stays out of **state** - the long-lived artifact.
 
 It does not cover a saved plan. `terraform plan -out=` records input variable values so apply can reuse them, so `secrets` appears there in cleartext under `.variables` even though the resource attribute is null. Don't save plans from this root.
+
+### change detection
+
+A write-only value cannot be diffed - Terraform keeps no copy of the old one - so editing `secrets` would otherwise produce `No changes` and be silently ignored.
+
+Two mechanisms cover that, and neither puts a value in state.
+
+| Detects | How | Reports as |
+|---|---|---|
+| you edited a value | salted hash drives `secret_data_wo_version` | a diff, per key |
+| something else wrote the container | `check` on the remote version number | a warning |
+
+Edit a value and only that container is rewritten. Nothing to bump.
+
+The hash is salted by `secrets_salt`, and that is not decoration.\
+Terraform's only memory between runs is state, so any change detection at all must persist a fingerprint there - that is what an etag is. An unsalted hash makes state a confirmation oracle: anyone holding the file can test a guessed value against it. Confirming a guess against a salted one needs the salt, which lives in the same gitignored tfvars as the value it protects.
+
+Set `secrets_salt` once and leave it. Changing it rewrites every container, since every hash moves with it.
+
+The `check` block covers what the hash cannot. The hash is computed from your config, never from the remote, so a `gcloud secrets versions add` behind Terraform's back is invisible to it. A metadata-only data source reads which version `latest` points at - no value is fetched, so none can land in state - and the check warns when that disagrees with the version Terraform created.
+
+Rotating a value logs `assertion known after apply`. The new version number does not exist until it does, so the assertion cannot be evaluated at plan time. That is accurate, not a fault.
 
 `gcloud secrets create` works just as well. What matters is that the container exists and that its writer is somewhere other than the VM deployment.
 
