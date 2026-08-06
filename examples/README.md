@@ -138,7 +138,7 @@ An ephemeral key has no such issue: a reboot is well inside the ten-minute windo
 
 ### the peer name carries a per-deployment suffix
 
-`vm/` names the peer `<name_prefix>-vm-<4 hex>`, from a `random_id` regenerated only on destroy.
+`vm/` names the peer `<name_prefix>-<4 hex>`, from a `random_id` regenerated only on destroy.
 
 Ephemeral cleanup is not instant. Redeploy inside the ten-minute window and the new peer meets the corpse of the old one, and NetBird disambiguates by suffixing its own name - at which point the FQDN this root predicts resolves to a peer that no longer exists. The suffix means the two names can never collide in the first place.
 

@@ -29,7 +29,7 @@ locals {
   # collides with the corpse of the last one - NetBird disambiguates by
   # suffixing, so the FQDN this root predicts would resolve to a peer that no
   # longer exists. A per-deployment suffix means the two can never be confused.
-  netbird_hostname = "${var.name_prefix}-vm-${random_id.peer.hex}"
+  netbird_hostname = "${var.name_prefix}-${random_id.peer.hex}"
 
   # NETBIRD_HOSTNAME is plain config, so it rides the same env_map the module
   # already delivers - no module input needed, since netbird/prepare reads it
