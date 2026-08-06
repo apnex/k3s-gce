@@ -37,8 +37,8 @@ output "ssh_command" {
 # never sees it. The FQDN is derivable though - NetBird names the peer after the
 # hostname, which this module already sets - so login by name rather than IP.
 output "netbird_fqdn" {
-  description = "NetBird FQDN of the VM. Resolvable from any peer on the mesh."
-  value       = "${module.k3s_gce.vm_name}.${var.netbird_domain}"
+  description = "NetBird FQDN of the VM, carrying the per-deployment suffix. Resolvable from any peer on the mesh."
+  value       = "${local.netbird_hostname}.${var.netbird_domain}"
 }
 
 output "root_key_file" {

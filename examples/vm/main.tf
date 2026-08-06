@@ -14,11 +14,35 @@ terraform {
       source  = "hashicorp/local"
       version = "~> 2.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 }
 
 locals {
   region = replace(var.zone, "/-[a-z]$/", "")
+
+  # NetBird names a peer after the hostname it is given, and keeps the old peer
+  # for a while after a VM dies. Redeploy inside that window and the new peer
+  # collides with the corpse of the last one - NetBird disambiguates by
+  # suffixing, so the FQDN this root predicts would resolve to a peer that no
+  # longer exists. A per-deployment suffix means the two can never be confused.
+  netbird_hostname = "${var.name_prefix}-vm-${random_id.peer.hex}"
+
+  # NETBIRD_HOSTNAME is plain config, so it rides the same env_map the module
+  # already delivers - no module input needed, since netbird/prepare reads it
+  # from the environment. Merged as the BASE so an explicit value in
+  # var.env_map still wins.
+  env_map = var.enable_netbird ? merge({ NETBIRD_HOSTNAME = local.netbird_hostname }, var.env_map) : var.env_map
+}
+
+# Four hex characters, regenerated only when this deployment is destroyed and
+# rebuilt. Stable across applies, so a re-apply does not rename the peer and
+# force it to re-register.
+resource "random_id" "peer" {
+  byte_length = 2
 }
 
 provider "google" {
@@ -41,7 +65,7 @@ module "k3s_gce" {
 
   subnetwork     = data.google_compute_subnetwork.target.id
   env_secret_map = var.env_secret_map
-  env_map        = var.env_map
+  env_map        = local.env_map
   env_file_path  = var.env_file_path
 
   enable_k3s_bootstrap = var.enable_k3s_bootstrap

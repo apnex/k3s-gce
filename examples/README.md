@@ -124,6 +124,26 @@ Two ways in. `login.sh` reads the `ssh_command` output and connects over the IAP
 
 The private key is written to `netbird-id` beside the script, at `0600`, and is also recorded in this root's state. Both are gitignored; treat the directory accordingly.
 
+### netbird peers are disposable, so make the key ephemeral
+
+A `terraform destroy` deletes the VM without the guest ever getting to deregister, so every cycle leaves a dead peer behind in your NetBird account.
+
+Create the setup key with the **ephemeral peers** option enabled.\
+NetBird then removes a peer automatically after it has been offline for more than ten minutes, which matches this VM's lifecycle exactly and costs no code.
+
+Deregistering on shutdown is the obvious alternative and it is a trap.\
+`ExecStop` and GCE shutdown scripts both fire on reboot as well as deletion, and systemd cannot tell the two apart. A reboot would deregister the peer while `netbird.done` still exists, so the duty skips on the next boot and the VM returns disconnected. Making that work means clearing the marker too, at which point every reboot mints a new peer with a new address - worse than the problem being solved.
+
+An ephemeral key has no such issue: a reboot is well inside the ten-minute window, so the peer survives it.
+
+### the peer name carries a per-deployment suffix
+
+`vm/` names the peer `<name_prefix>-vm-<4 hex>`, from a `random_id` regenerated only on destroy.
+
+Ephemeral cleanup is not instant. Redeploy inside the ten-minute window and the new peer meets the corpse of the old one, and NetBird disambiguates by suffixing its own name - at which point the FQDN this root predicts resolves to a peer that no longer exists. The suffix means the two names can never collide in the first place.
+
+It is stable across applies, so re-applying does not rename the peer and force it to re-register. `netbird-login.sh` reads the name from an output rather than assuming it, so nothing needs to track it by hand.
+
 Open an interactive shell:
 ```
 cd env/vm
