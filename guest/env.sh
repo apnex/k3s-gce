@@ -8,9 +8,9 @@
 ##
 ## Metadata inputs (instance/attributes):
 ##   env-project     GCP project id
-##   env-secret-map  "KEY:container,KEY:container,..." -- Terraform owns the
-##                   container naming (it knows each key's scope); this script
-##                   only resolves names to values
+##   env-secret-map  "ENV:container,ENV:container,..." -- Terraform owns the
+##                   mapping; this script only resolves container names to
+##                   values and writes them under the ENV name given
 ##   env-file    absolute path to write the env file
 ##
 ## Metadata carries NAMES, never values. Instance metadata is readable by any

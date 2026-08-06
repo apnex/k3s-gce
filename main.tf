@@ -1,14 +1,19 @@
 # k3s-gce - a reusable k3s VM on GCE.
 #
 # Scope is the VM: a least-privilege Rocky instance with OS Login, app secrets
-# in Secret Manager fetched into an env file on boot, an optional pod->host SSH
-# login identity, and optional self-assembly of k3s.
+# READ from Secret Manager into an env file on boot, and optional self-assembly
+# of k3s.
 #
 # NOT in scope: the VPC, subnet, firewall rules, Cloud NAT, and project API
 # enablement. Those belong to the project/network layer and are caller
 # prerequisites (see README). The module attaches to an existing subnetwork.
 #
-# App-agnostic: the secret names, env-file path, and k3s repo are all inputs.
+# NOT in scope either: creating or writing Secret Manager containers. The module
+# is a pure READER - it grants its VM read access to containers you already own
+# and never creates, writes or destroys one. No secret value passes through
+# Terraform, so none can land in state.
+#
+# App-agnostic: the secret mapping, env-file path, and k3s repo are all inputs.
 
 locals {
   # A GCE zone is always "<region>-<letter>", so the region is derivable and
@@ -24,22 +29,13 @@ locals {
   # exported as an output so the caller wires its rule to what was applied.
   network_tags = coalesce(var.network_tags, ["${var.name_prefix}-vm"])
 
-  # Normalise every requested key into its container name. scope "self" → the
-  # VM's own prefix (name_prefix); any other label → a shared container.
-  # Container name is `<scope-or-name_prefix>-<KEY>`.
-  keyed = {
-    for e in var.secret_keys : e.key => {
-      shared    = e.scope != "self"
-      container = "${e.scope == "self" ? var.name_prefix : e.scope}-${e.key}"
-    }
-  }
+  # "ENV:container,ENV:container,..." for the guest. env.sh fetches by container
+  # name and writes the bare ENV=value, so Terraform owns the mapping and bash
+  # owns none of it. Sorted for a stable metadata value across plans.
+  env_secret_map_csv = join(",", sort([for env, container in var.env_secret_map : "${env}:${container}"]))
 
-  # self → module CREATES the container; shared → module only REFERENCES it
-  # (read grant) and assumes it already exists. Maps are KEY => container.
-  self_keys   = { for k, v in local.keyed : k => v.container if !v.shared }
-  shared_keys = { for k, v in local.keyed : k => v.container if v.shared }
-
-  # KEY:container pairs for startup.sh — it fetches by container name and
-  # writes the bare KEY=value into the env file (TF owns naming, not bash).
-  secret_map = join(",", sort([for k, v in local.keyed : "${k}:${v.container}"]))
+  # Distinct containers to grant read on. Two env names may point at the same
+  # container; without the dedupe that would be two IAM bindings on one secret,
+  # which is a duplicate-resource error rather than a merge.
+  secret_containers = toset(values(var.env_secret_map))
 }

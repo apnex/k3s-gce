@@ -60,36 +60,32 @@ variable "network_tags" {
   default     = null
 }
 
-# ── secret / env injection (app-agnostic) ───────────────────────────
-# Container names are `<scope>-<KEY>`. Each key's scope is either the VM's own
-# name (per-VM isolation) or a shared label (cross-VM sharing):
-#   scope = "self" (default) → `<name_prefix>-<KEY>`, CREATED + read-granted here
-#   scope = "<label>"        → `<label>-<KEY>`, assumed to ALREADY EXIST; the
-#                              module only grants the VM read access (it does
-#                              not create or write shared containers).
-variable "secret_keys" {
-  description = "Application secrets the VM fetches into the env file. Each entry is { key = \"NAME\", scope = \"self\"|\"<shared-label>\" } (scope defaults to \"self\"). self → module creates `<name_prefix>-<KEY>`; a label → module references an existing `<label>-<KEY>` (read-only)."
-  type = list(object({
-    key   = string
-    scope = optional(string, "self")
-  }))
-  default = []
-}
-
-variable "secret_values" {
-  description = "Optional KEY → value map written as Secret Manager versions of the SELF-scoped containers (typically via a gitignored *.auto.tfvars). Keys must be self-scoped entries in secret_keys — shared containers are populated out-of-band, not here. Values land in terraform.tfstate in plaintext — treat state as sensitive."
+# ── secret / env injection (app-agnostic, READ-ONLY) ────────────────
+# The module never creates or writes a Secret Manager container. It grants its
+# VM read access to containers you already own, and tells the guest which
+# container backs which environment variable.
+#
+# The two names are decoupled on purpose. The map key is the environment
+# variable written into the env file, so it must be a valid shell identifier;
+# the map value is the container as it is actually named in Secret Manager,
+# whatever convention that follows. Tying them together would make any
+# pre-existing secret whose name is not a legal shell identifier unreadable.
+variable "env_secret_map" {
+  description = "Environment variable name → existing Secret Manager container name, e.g. { LLM_API_KEY = \"shared-llm-api-key\" }. Every container must ALREADY EXIST; the module only binds its VM service account as a reader and never creates, writes or destroys one. The key becomes the variable name in the env file, so it must be a valid shell identifier. Two keys may reference the same container."
   type        = map(string)
   default     = {}
-  sensitive   = true
 
   validation {
-    # Values may only target SELF-scoped keys — shared containers are populated
-    # out-of-band, not by this deployment. Validating against the self-scoped
-    # subset turns a misplaced shared value into a clear message here instead of
-    # an "Invalid index" crash in secrets.tf. nonsensitive() exposes only KEY
-    # names (not values) to the error text.
-    condition     = length(setsubtract(keys(nonsensitive(var.secret_values)), [for e in var.secret_keys : e.key if e.scope == "self"])) == 0
-    error_message = "secret_values keys must be SELF-scoped entries in secret_keys. Shared-scoped keys are populated where their container is created (e.g. env/shared/)."
+    # A key that is not a legal shell identifier would be written into the env
+    # file as `not-valid=...`, which fails to source. Catching it here beats a
+    # silently broken env file discovered at boot.
+    condition     = alltrue([for k in keys(var.env_secret_map) : can(regex("^[A-Za-z_][A-Za-z0-9_]*$", k))])
+    error_message = "env_secret_map keys become shell variable names, so each must match ^[A-Za-z_][A-Za-z0-9_]*$. The Secret Manager container name is the VALUE and has no such restriction."
+  }
+
+  validation {
+    condition     = alltrue([for v in values(var.env_secret_map) : length(trimspace(v)) > 0])
+    error_message = "env_secret_map values must be non-empty Secret Manager container names."
   }
 }
 

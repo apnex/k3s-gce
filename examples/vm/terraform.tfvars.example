@@ -1,0 +1,12 @@
+project_id  = "your-project-id"
+zone        = "australia-southeast1-a"
+name_prefix = "k3stest"
+
+subnet_name = "your-existing-subnet"
+
+credentials_file = null
+
+env_secret_map = {
+  LLM_API_KEY = "shared-llm-api-key"
+  GH_TOKEN    = "demo-gh-token"
+}

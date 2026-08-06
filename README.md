@@ -5,11 +5,14 @@ Self-assembling k3s VM on GCE.
 Scope is the VM. Stands up:
 
 - least-privilege Rocky VM with OS Login, no public IP - image follows `boot_disk_image`
-- application secrets in Secret Manager, fetched into an env file on boot
+- existing Secret Manager values read into an env file on boot
 - (optional) k3s self-assembly on first boot
 
 The VPC, subnet, firewall rules, Cloud NAT and project API enablement are **not** in scope.\
 The module attaches to a subnetwork you already own.
+
+Secret Manager containers are **not** in scope either.\
+The module is a pure reader: it grants its VM read access to containers you already own, and never creates, writes or destroys one. No secret value passes through Terraform, so none can land in the plan file or in state.
 
 It writes **no project-level IAM**, enables **no APIs**, and needs only a single `google` provider.\
 Its service account is authorised per-secret and nothing else.
@@ -35,7 +38,7 @@ The routing ones fail at **boot**, not at apply, so a green `terraform apply` is
 The metadata server needs nothing: it is link-local at `169.254.169.254`, and it is where the VM gets its config, its access token, and its OS Login data.\
 SSH over IAP does not depend on PGA or NAT.
 
-Enabling both PGA and NAT is the recommended shape, and what `examples/hermes-vm/network.tf` does.\
+Enabling both PGA and NAT is the recommended shape, and what `examples/network` builds.\
 PGA is redundant while NAT is present, but it keeps secret injection working if you later set `enable_k3s_bootstrap = false` and drop NAT.
 
 ### main.tf
@@ -46,10 +49,10 @@ locals {
 	zone		= "australia-southeast1-a"	# the module derives its region from this
 	name_prefix	= "demo"
 	subnet_name	= "my-existing-subnet"
-	secret_keys	= [
-		{ key = "APP_TOKEN" },				# self   -> demo-APP_TOKEN
-		{ key = "LLM_API_KEY", scope = "shared" }	# shared -> shared-LLM_API_KEY
-	]
+	env_secret_map	= {				# ENV var -> container that ALREADY exists
+		APP_TOKEN	= "demo-app-token"
+		LLM_API_KEY	= "shared-llm-api-key"
+	}
 }
 
 provider "google" {
@@ -69,7 +72,7 @@ module "k3s-gce" {
 	project_id	= local.project_id
 	zone		= local.zone
 	name_prefix	= local.name_prefix
-	secret_keys	= local.secret_keys
+	env_secret_map	= local.env_secret_map
 
 	subnetwork	= data.google_compute_subnetwork.target.id
 }
@@ -103,12 +106,15 @@ terraform apply -auto-approve
 
 ### secrets
 
-Containers are named `<scope>-<KEY>`.\
-A `self` scope - the default - is created by the module under `name_prefix`.\
-A shared label references an already-existing container read-only, and the module grants the VM SA read access without creating or writing it.
+`env_secret_map` is `ENV_VAR = "container-name"`, and every container must already exist.\
+The module binds its VM service account as a reader on each and passes the mapping to the guest. It creates nothing, writes nothing, and destroys nothing.
 
-`secret_values` writes Secret Manager versions for self-scoped keys only.\
-Those values land in `terraform.tfstate` in plaintext, so treat state as sensitive.
+The two names are decoupled deliberately.\
+The map **key** becomes the variable name in the env file, so it must be a valid shell identifier - the module validates this. The map **value** is the container as Secret Manager actually names it, under whatever convention it already follows. Tying them together would make any pre-existing secret whose name is not a legal shell identifier unreadable.
+
+Two keys may point at one container; the read grant is deduplicated.
+
+Containers are created elsewhere - a separate Terraform root (see `examples/secrets`) or `gcloud secrets create`. Keeping the writer out of this module is what stops secret values reaching the plan file or state.
 
 ### notes
 
@@ -181,7 +187,7 @@ ExecStart=/opt/k3s-gce/netbird.sh
 ```
 
 Its script then reads `NETBIRD_SETUP_KEY` straight from its own environment, with no shell and no human in the path.\
-Add the key to `secret_keys` and it appears there on the next boot.
+Add an entry to `env_secret_map` and it appears there on the next boot.
 
 `k3s-bootstrap` already consumes it this way, which is what puts the secrets in front of the bring-up entrypoint.
 

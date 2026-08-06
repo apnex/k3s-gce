@@ -40,10 +40,12 @@ resource "google_compute_instance" "vm" {
   metadata = {
     enable-oslogin = "TRUE"
 
-    # env injection — TF owns container naming; startup.sh fetches by container
-    # name and writes the bare KEY=value. env-secret-map is "KEY:container,…".
+    # env injection — TF owns the mapping; env.sh fetches by container name and
+    # writes the bare ENV=value. env-secret-map is "ENV:container,…". Names
+    # only: metadata is readable by any process on the VM and by anyone with
+    # compute.instances.get, so values stay in Secret Manager.
     env-project    = var.project_id
-    env-secret-map = local.secret_map
+    env-secret-map = local.env_secret_map_csv
     env-file       = local.env_file_path
 
     # k3s self-assembly

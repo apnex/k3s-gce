@@ -1,0 +1,7 @@
+project_id  = "your-project-id"
+region      = "australia-southeast1"
+name_prefix = "k3s"
+
+subnet_cidr = "10.20.0.0/24"
+
+credentials_file = null

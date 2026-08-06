@@ -1,9 +1,32 @@
-# Project and network prerequisites for the k3s-gce module.
+# The network prerequisites the k3s-gce module expects you to already have.
 #
-# The module deploys the VM only. Everything here is the caller's
-# responsibility, and this file is the reference for what that means:
-# enabled APIs, a VPC, a subnet with Private Google Access, an IAP-SSH
-# firewall rule, and outbound egress via Cloud NAT.
+# The module deploys the VM only. This root is the reference for everything it
+# assumes exists: enabled APIs, a VPC, a subnet with Private Google Access, and
+# outbound egress via Cloud NAT.
+#
+# Apply this only on an empty project. If you already own a subnet, skip
+# straight to ../vm and point it at yours.
+#
+# The IAP-SSH firewall rule is NOT here. It has to target the tags the module
+# actually applied, which are an output of the VM root, so ../vm owns it. A rule
+# written here would have to guess at a tag and could drift from the instance.
+
+terraform {
+  required_version = ">= 1.5"
+
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 6.0"
+    }
+  }
+}
+
+provider "google" {
+  project     = var.project_id
+  region      = var.region
+  credentials = var.credentials_file != null ? file(var.credentials_file) : null
+}
 
 resource "google_project_service" "apis" {
   for_each = toset(var.apis)
@@ -23,7 +46,7 @@ resource "google_compute_network" "vpc" {
 
 resource "google_compute_subnetwork" "subnet" {
   name          = "${var.name_prefix}-subnet"
-  ip_cidr_range = var.vpc_cidr
+  ip_cidr_range = var.subnet_cidr
   region        = var.region
   network       = google_compute_network.vpc.id
 
@@ -36,25 +59,10 @@ resource "google_compute_subnetwork" "subnet" {
   private_ip_google_access = true
 }
 
-# IAP-tunnel SSH to VM:22. 35.235.240.0/20 is Google's canonical IAP range.
-# Targets the tags the module actually applied, so the two cannot drift.
-resource "google_compute_firewall" "allow_iap_ssh" {
-  name      = "${var.name_prefix}-allow-iap-ssh"
-  network   = google_compute_network.vpc.id
-  direction = "INGRESS"
-
-  allow {
-    protocol = "tcp"
-    ports    = ["22"]
-  }
-
-  source_ranges = ["35.235.240.0/20"]
-  target_tags   = module.k3s_gce.network_tags
-}
-
 # Outbound internet egress. The VM has no public IP, so this is its only route
 # out, and it is REQUIRED when enable_k3s_bootstrap is true: first boot clones
-# the bring-up repo and downloads the k3s installer. Inbound stays closed.
+# the bring-up repo and downloads the k3s installer, neither of which is a
+# Google API. Inbound stays closed.
 resource "google_compute_router" "router" {
   name    = "${var.name_prefix}-router"
   region  = var.region
