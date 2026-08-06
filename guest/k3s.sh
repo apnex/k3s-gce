@@ -53,17 +53,34 @@ fi
 
 echo "k3s: self-assembling from ${REPO}@${REF:-default} ($ENTRY)"
 
-if ! command -v git >/dev/null 2>&1; then
-	echo "installing git..."
+# Commands the bring-up needs that a minimal Rocky image may not carry:
+#
+#   git  clones the bring-up repo, below.
+#   jq   k3s/prepare checks for it and exits 1 if absent, which fails the whole
+#        bring-up. Nothing k3s/up runs actually calls jq -- metallb/install
+#        resolves its release tag with sed -- but the gate is real, so satisfy
+#        it here rather than discover it from a failed unit.
+#
+# Installing them here rather than assuming the image carries them is what keeps
+# boot_disk_image a free choice.
+REQUIRED_CMDS=(git jq)
+
+missing=()
+for cmd in "${REQUIRED_CMDS[@]}"; do
+	command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+done
+
+if (( ${#missing[@]} )); then
+	echo "installing: ${missing[*]}"
 	# The package mirror can be briefly unreachable on cold boot. A clear error
 	# plus retry-next-boot beats a bare set -e abort.
-	gitok=
+	pkgok=
 	for _ in 1 2 3; do
-		dnf install -y -q git && { gitok=1; break; }
-		echo "WARN: dnf install git failed -- retrying in 5s" >&2
+		dnf install -y -q "${missing[@]}" && { pkgok=1; break; }
+		echo "WARN: dnf install ${missing[*]} failed -- retrying in 5s" >&2
 		sleep 5
 	done
-	[[ -n "$gitok" ]] || { echo "ERROR: could not install git -- marker NOT written; will retry next boot" >&2; exit 1; }
+	[[ -n "$pkgok" ]] || { echo "ERROR: could not install ${missing[*]} -- marker NOT written; will retry next boot" >&2; exit 1; }
 fi
 
 CLONE_DIR="/opt/$(basename "${REPO%.git}")"
