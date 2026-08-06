@@ -36,9 +36,14 @@ output "ssh_command" {
 # NetBird assigns the peer address at join time, long after apply, so Terraform
 # never sees it. The FQDN is derivable though - NetBird names the peer after the
 # hostname, which this module already sets - so login by name rather than IP.
-output "netbird_fqdn" {
-  description = "NetBird FQDN of the VM, carrying the per-deployment suffix. Resolvable from any peer on the mesh."
-  value       = "${local.netbird_hostname}.${var.netbird_domain}"
+# NOT the FQDN. NetBird owns the peer name and rewrites it at registration - a
+# reusable setup key may register many machines, so it appends the address
+# octets to keep names distinct. That happens after apply, so no output here can
+# state the final name. What Terraform does control is this prefix, unique to
+# one deployment, which netbird-login.sh uses to FIND the peer instead.
+output "netbird_peer_prefix" {
+  description = "Per-deployment prefix of the NetBird peer name. The full name may carry a NetBird-appended suffix; match on this rather than assuming an exact FQDN."
+  value       = local.netbird_hostname
 }
 
 output "root_key_file" {

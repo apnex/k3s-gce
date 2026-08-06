@@ -128,8 +128,10 @@ The private key is written to `netbird-id` beside the script, at `0600`, and is 
 
 A `terraform destroy` deletes the VM without the guest ever getting to deregister, so every cycle leaves a dead peer behind in your NetBird account.
 
-Create the setup key with the **ephemeral peers** option enabled.\
+Create the setup key with the **ephemeral peers** option enabled, and set its **auto-assigned groups** so registered peers land in the group your policies target.\
 NetBird then removes a peer automatically after it has been offline for more than ten minutes, which matches this VM's lifecycle exactly and costs no code.
+
+Auto-assigned groups matter for the same reason. Every apply registers a brand-new peer, so a peer added to a group by hand would need adding again on every cycle - and until it is, it is connected but every access rule targeting that group ignores it. Both properties belong to the key, so neither needs anything client-side.
 
 Deregistering on shutdown is the obvious alternative and it is a trap.\
 `ExecStop` and GCE shutdown scripts both fire on reboot as well as deletion, and systemd cannot tell the two apart. A reboot would deregister the peer while `netbird.done` still exists, so the duty skips on the next boot and the VM returns disconnected. Making that work means clearing the marker too, at which point every reboot mints a new peer with a new address - worse than the problem being solved.
@@ -142,7 +144,18 @@ An ephemeral key has no such issue: a reboot is well inside the ten-minute windo
 
 Ephemeral cleanup is not instant. Redeploy inside the ten-minute window and the new peer meets the corpse of the old one, and NetBird disambiguates by suffixing its own name - at which point the FQDN this root predicts resolves to a peer that no longer exists. The suffix means the two names can never collide in the first place.
 
-It is stable across applies, so re-applying does not rename the peer and force it to re-register. `netbird-login.sh` reads the name from an output rather than assuming it, so nothing needs to track it by hand.
+It is stable across applies, so re-applying does not rename the peer and force it to re-register.
+
+### the peer name is a search key, not an address
+
+NetBird owns the final name and rewrites it at registration.\
+A reusable setup key may register many machines, so it appends the address octets to keep names distinct - `k3stest-17c6` becomes `k3stest-17c6-68-183`. That happens after apply, so no Terraform output can state the final name.
+
+`netbird-login.sh` therefore FINDS the peer instead of predicting it: it reads `netbird_peer_prefix` and matches it against the local peer list, then connects to the address it finds.
+
+That works either way. A single-use key produces `k3stest-17c6` with no suffix and matches just the same, so switching key types changes nothing. It does not depend on DNS resolving anything either, and a failed join reports `no NetBird peer matching 'k3stest-17c6'` rather than a hostname error pointing nowhere near the cause.
+
+Reusable is the better fit regardless: a single-use key needs regenerating and re-storing in Secret Manager on every deploy, which is the manual step the rest of this design removes.
 
 Open an interactive shell:
 ```

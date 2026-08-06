@@ -68,8 +68,3 @@ variable "netbird_bootstrap_url" {
   default     = "https://labops.sh/netbird/up"
 }
 
-variable "netbird_domain" {
-  description = "DNS suffix NetBird gives peers. netbird.cloud for NetBird Cloud; a self-hosted deployment uses its own."
-  type        = string
-  default     = "netbird.cloud"
-}
